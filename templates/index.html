@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockWatch | Market Dashboard</title>
+
+    <style>
+        :root {
+            --bg: #080d1c;
+            --sidebar: #0d162b;
+            --card: #131f36;
+            --border: #263957;
+            --text: #f4f7ff;
+            --muted: #91a7c6;
+            --blue: #7085ff;
+            --purple: #8d69f5;
+            --green: #20d6a0;
+            --red: #ff718e;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Inter, "Segoe UI", Arial, sans-serif;
+            font-size: 14px;
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 220px minmax(0, 1fr);
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 13px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            font-size: 23px;
+        }
+
+        .brand h2 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .brand p,
+        .muted {
+            color: var(--muted);
+        }
+
+        .brand p {
+            margin: 4px 0 0;
+            font-size: 12px;
+        }
+
+        .eyebrow {
+            color: var(--blue);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .nav {
+            width: 100%;
+            text-align: left;
+            padding: 12px;
+            color: var(--muted);
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            margin-bottom: 4px;
+        }
+
+        .nav:hover,
+        .nav.active {
+            color: white;
+            background: #1a2a49;
+            border-color: #30486f;
+        }
+
+        .sidebar-note {
+            margin-top: auto;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+
+        main {
+            min-width: 0;
+            padding: 26px;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: clamp(25px, 3vw, 34px);
+            margin: 8px 0;
+            letter-spacing: -1px;
+        }
+
+        h2,
+        h3,
+        p {
+            overflow-wrap: anywhere;
+        }
+
+        h2 {
+            font-size: 21px;
+        }
+
+        h3 {
+            font-size: 16px;
+        }
+
+        p {
+            line-height: 1.5;
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status {
+            color: var(--muted);
+            padding: 10px 13px;
+            border: 1px solid var(--border);
+            border-radius: 30px;
+        }
+
+        .btn,
+        .ai-button {
+            border: 0;
+            border-radius: 10px;
+            padding: 11px 15px;
+            color: white;
+            background: linear-gradient(120deg, var(--blue), var(--purple));
+            font-weight: 700;
+        }
+
+        .btn:hover,
+        .ai-button:hover {
+            filter: brightness(1.1);
+        }
+
+        button:disabled {
+            opacity: .6;
+            cursor: wait;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+
+        .stat,
+        .panel,
+        .stock-card,
+        .chart-panel {
+            background: linear-gradient(145deg, #15223b, #10192d);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+
+        .stat {
+            padding: 18px;
+            min-width: 0;
+        }
+
+        .stat p {
+            color: var(--muted);
+            margin: 0 0 12px;
+        }
+
+        .stat strong {
+            display: block;
+            font-size: clamp(20px, 2vw, 27px);
+            overflow-wrap: anywhere;
+        }
+
+        section {
+            margin-bottom: 30px;
+            scroll-margin-top: 20px;
+        }
+
+        .section-heading {
+            margin-bottom: 15px;
+        }
+
+        .section-heading h2 {
+            margin: 0 0 6px;
+        }
+
+        .section-heading p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .panel {
+            padding: 20px;
+        }
+
+        .add-form {
+            display: flex;
+            align-items: end;
+            gap: 12px;
+        }
+
+        .field {
+            flex: 1;
+            min-width: 0;
+        }
+
+        label {
+            display: block;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            background: #0b1325;
+            color: var(--text);
+            border: 1px solid #304363;
+            border-radius: 10px;
+            outline: none;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--blue);
+        }
+
+        .watchlist-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 340px));
+            gap: 14px;
+            align-items: stretch;
+        }
+
+        .stock-card {
+            padding: 17px;
+            min-width: 0;
+            width: 100%;
+            max-width: 340px;
+            transition: transform .18s ease, border-color .18s ease;
+        }
+
+        .stock-card:hover {
+            transform: translateY(-2px);
+            border-color: #526ba0;
+        }
+
+        .stock-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .stock-card h3 {
+            font-size: 19px;
+            margin: 0;
+            letter-spacing: .4px;
+        }
+
+        .stock-subtitle {
+            color: var(--muted);
+            margin: 7px 0 14px;
+        }
+
+        .stock-price {
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin: 10px 0 15px;
+        }
+
+        .change {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 6px 8px;
+            border-radius: 8px;
+            white-space: nowrap;
+        }
+
+        .positive {
+            color: var(--green);
+            background: #103a37;
+        }
+
+        .negative {
+            color: var(--red);
+            background: #3a2035;
+        }
+
+        .stock-divider {
+            border: 0;
+            border-top: 1px solid var(--border);
+            margin: 12px 0;
+        }
+
+        .stock-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stock-details span,
+        .updated {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stock-details strong {
+            display: block;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .stock-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .remove-btn {
+            padding: 8px 10px;
+            border-radius: 9px;
+            color: var(--red);
+            border: 1px solid #663047;
+            background: #291b30;
+            font-weight: 700;
+        }
+
+        .remove-btn:hover {
+            background: #452036;
+        }
+
+        .error-message {
+            color: var(--red);
+            background: #1a263e;
+            border: 1px solid #663047;
+            padding: 12px;
+            border-radius: 10px;
+            line-height: 1.5;
+            margin-top: 12px;
+            overflow-wrap: anywhere;
+        }
+
+        .chart-panel {
+            padding: 18px;
+            min-width: 0;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            position: relative;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .chart-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .chart-stat {
+            background: #17233b;
+            border-radius: 10px;
+            padding: 12px;
+            min-width: 0;
+        }
+
+        .chart-stat span {
+            display: block;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 7px;
+        }
+
+        .chart-stat strong {
+            font-size: 17px;
+            overflow-wrap: anywhere;
+        }
+
+        .alert-layout {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 13px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+
+        .ai-insights-panel {
+            margin: 22px 0;
+            padding: 22px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: linear-gradient(145deg, #15223b, #10192d);
+        }
+
+        .ai-insights-panel h2 {
+            margin-top: 0;
+        }
+
+        .ai-insights-copy {
+            color: var(--muted);
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+
+        .ai-status {
+            color: var(--muted);
+            margin-top: 14px;
+        }
+
+        .ai-status.error {
+            color: var(--red);
+        }
+
+        .ai-insights-output {
+            white-space: pre-wrap;
+            line-height: 1.75;
+            overflow-wrap: anywhere;
+            color: var(--text);
+        }
+
+        .ai-insights-output:empty {
+            display: none;
+        }
+
+        .toast-container {
+            position: fixed;
+            z-index: 1000;
+            right: 16px;
+            top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: min(360px, calc(100vw - 32px));
+        }
+
+        .toast {
+            background: #17243e;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 13px 15px;
+            box-shadow: 0 12px 32px #0005;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+
+        .toast.error {
+            border-color: #8e3450;
+        }
+
+        .toast.success {
+            border-color: #176c59;
+        }
+
+        footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 12px;
+            padding: 12px;
+        }
+
+        @media (max-width: 1000px) {
+            .app {
+                grid-template-columns: 175px minmax(0, 1fr);
+            }
+
+            main {
+                padding: 20px;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .watchlist-grid {
+                grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+            }
+
+            .stock-card {
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 680px) {
+            .app {
+                display: block;
+            }
+
+            .sidebar {
+                padding: 12px;
+                gap: 10px;
+                position: relative;
+            }
+
+            .brand {
+                margin: 0;
+            }
+
+            .sidebar .eyebrow,
+            .sidebar-note {
+                display: none;
+            }
+
+            .sidebar>div:nth-of-type(2) {
+                display: flex;
+                gap: 6px;
+                overflow-x: auto;
+                padding-bottom: 3px;
+            }
+
+            .nav {
+                width: auto;
+                flex: 0 0 auto;
+                margin: 0;
+                padding: 9px 12px;
+                white-space: nowrap;
+            }
+
+            main {
+                padding: 16px 12px;
+            }
+
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .stat {
+                padding: 15px;
+            }
+
+            .add-form {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .watchlist-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .stock-card {
+                max-width: none;
+                padding: 15px;
+            }
+
+            .alert-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-container {
+                height: 240px;
+            }
+
+            .chart-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .panel,
+            .chart-panel {
+                padding: 15px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">↗</div>
+                <div>
+                    <h2>StockWatch</h2>
+                    <p>Market intelligence</p>
+                </div>
+            </div>
+
+            <div class="eyebrow">Workspace</div>
+            <div>
+                <button class="nav active" data-target="overview">▦ Overview</button>
+                <button class="nav" data-target="watchlist">☆ Watchlist</button>
+                <button class="nav" data-target="aiInsights">✦ Gemini AI</button>
+                <button class="nav" data-target="history">⌁ Price History</button>
+                <button class="nav" data-target="alerts">♧ Price Alerts</button>
+            </div>
+
+            <div class="sidebar-note">
+                <strong>Market monitor</strong>
+                <p>Follow selected stocks, view saved price snapshots, and set browser alerts.</p>
+            </div>
+        </aside>
+
+        <main>
+            <header class="topbar" id="overview">
+                <div>
+                    <div class="eyebrow">Your financial workspace</div>
+                    <h1>Market Overview</h1>
+                    <p class="muted">Track your watchlist, review prices, and manage alerts.</p>
+                </div>
+                <div class="top-actions">
+                    <span class="status" id="quoteStatus">● Loading quotes</span>
+                    <button class="btn" id="refreshButton">↻ Refresh</button>
+                </div>
+            </header>
+
+            <div class="stats">
+                <div class="stat">
+                    <p>Watchlist stocks</p>
+                    <strong id="watchCount">0</strong>
+                    <span class="muted">Stocks you're tracking</span>
+                </div>
+                <div class="stat">
+                    <p>Last successful update</p>
+                    <strong id="lastUpdate">—</strong>
+                    <span class="muted">Latest successful quote</span>
+                </div>
+                <div class="stat">
+                    <p>Active price alerts</p>
+                    <strong id="alertCount">0</strong>
+                    <span class="muted">Alerts in this browser session</span>
+                </div>
+            </div>
+
+            <section id="addStock">
+                <div class="section-heading">
+                    <h2>Add a stock</h2>
+                    <p>Enter a ticker symbol to add it to your watchlist.</p>
+                </div>
+                <form class="panel add-form" id="addStockForm">
+                    <div class="field">
+                        <label for="stockSymbol">Stock symbol</label>
+                        <input id="stockSymbol" placeholder="For example, AAPL" maxlength="15" required>
+                    </div>
+                    <button class="btn" type="submit">+ Add stock</button>
+                </form>
+            </section>
+
+            <section id="watchlist">
+                <div class="section-heading">
+                    <h2>My Watchlist</h2>
+                    <p>Your selected stocks and their latest available quotes.</p>
+                </div>
+                <div class="watchlist-grid" id="watchlistGrid"></div>
+            </section>
+
+            <section id="aiInsights" class="ai-insights-panel">
+                <h2>✦ Gemini AI Insights</h2>
+                <p class="ai-insights-copy">
+                    Get an educational summary of saved StockWatch history for a stock.
+                    AI-generated insights are for learning only, not financial advice.
+                </p>
+                <div class="field" style="max-width:240px;margin-bottom:14px">
+                    <label for="aiSymbol">Choose stock</label>
+                    <select id="aiSymbol"></select>
+                </div>
+                <button class="ai-button" id="aiAnalyzeButton" type="button">✦ Generate AI insights</button>
+                <p class="ai-status" id="aiStatus" role="status">Choose a stock and generate a report.</p>
+                <div class="ai-insights-output" id="aiOutput"></div>
+            </section>
+
+            <section id="history">
+                <div class="section-heading">
+                    <h2>Price History</h2>
+                    <p>Explore saved price snapshots with interactive charts.</p>
+                </div>
+                <div class="chart-panel">
+                    <div class="field" style="max-width:240px;margin-bottom:15px">
+                        <label for="historySymbol">Choose stock</label>
+                        <select id="historySymbol"></select>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="priceChart" aria-label="Stock price history chart"></canvas>
+                    </div>
+                    <div class="chart-stats">
+                        <div class="chart-stat"><span>Latest saved price</span><strong id="latestPrice">—</strong></div>
+                        <div class="chart-stat"><span>Highest saved price</span><strong id="highestPrice">—</strong>
+                        </div>
+                        <div class="chart-stat"><span>Lowest saved price</span><strong id="lowestPrice">—</strong></div>
+                    </div>
+                    <p class="muted" id="historyMessage">Saved quote snapshots appear here.</p>
+                </div>
+            </section>
+
+            <section id="alerts">
+                <div class="section-heading">
+                    <h2>Price Alerts</h2>
+                    <p>Get an in-browser notification when a quote meets your daily percentage threshold.</p>
+                </div>
+                <div class="alert-layout">
+                    <div class="panel">
+                        <h3>Create an alert</h3>
+                        <form id="alertForm">
+                            <div class="field" style="margin-bottom:14px">
+                                <label for="alertSymbol">Stock</label>
+                                <select id="alertSymbol" required></select>
+                            </div>
+                            <div class="field" style="margin-bottom:14px">
+                                <label for="alertDirection">Condition</label>
+                                <select id="alertDirection">
+                                    <option value="up">Rises to or above</option>
+                                    <option value="down">Falls to or below</option>
+                                </select>
+                            </div>
+                            <div class="field" style="margin-bottom:14px">
+                                <label for="alertThreshold">Daily change (%)</label>
+                                <input id="alertThreshold" type="number" min="0.01" step="0.01"
+                                    placeholder="For example, 2" required>
+                            </div>
+                            <button class="btn" type="submit">+ Create alert</button>
+                        </form>
+                        <p id="alertFormMessage" class="muted"></p>
+                    </div>
+                    <div class="panel">
+                        <h3>Your alerts</h3>
+                        <p class="muted">Alerts are checked when quotes refresh successfully.</p>
+                        <div id="alertList"></div>
+                    </div>
+                </div>
+            </section>
+
+            <footer>StockWatch · Educational project · Market data may be delayed. Not investment advice.</footer>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        const $ = id => document.getElementById(id);
+        let watchlist = [];
+        let alerts = [];
+        let previousPrices = {};
+
+        function toast(message, type = "") {
+            const item = document.createElement("div");
+            item.className = "toast " + type;
+            item.textContent = message;
+            $("toastContainer").appendChild(item);
+            setTimeout(() => item.remove(), 5500);
+        }
+
+        async function api(url, options = {}) {
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(options.headers || {})
+                }
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || data.message || "Request failed.");
+            }
+            return data;
+        }
+
+        function money(value) {
+            const n = Number(value);
+            return Number.isFinite(n)
+                ? n.toLocaleString("en-US", { style: "currency", currency: "USD" })
+                : "—";
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "").replace(/[&<>"']/g, char => ({
+                "&": "&amp;", "<": "&lt;", ">": "&gt;",
+                '"': "&quot;", "'": "&#39;"
+            }[char]));
+        }
+
+        function updateSelects() {
+            ["historySymbol", "alertSymbol", "aiSymbol"].forEach(id => {
+                const select = $(id);
+                const oldValue = select.value;
+                select.innerHTML = "";
+
+                watchlist.forEach(symbol => {
+                    const option = document.createElement("option");
+                    option.value = symbol;
+                    option.textContent = symbol;
+                    select.appendChild(option);
+                });
+
+                if (watchlist.includes(oldValue)) select.value = oldValue;
+            });
+
+            $("alertCount").textContent = alerts.length;
+        }
+
+        function renderLoadingCard(symbol) {
+            return `
+            <article class="stock-card">
+                <div class="stock-card-header">
+                    <h3>${escapeHtml(symbol)}</h3>
+                    <button class="remove-btn" data-remove="${escapeHtml(symbol)}">Remove</button>
+                </div>
+                <p class="stock-subtitle">Loading quote…</p>
+                <div class="stock-price">—</div>
+                <p class="muted">Waiting for available market data.</p>
+            </article>`;
+        }
+
+        function renderQuoteCard(data) {
+            const change = Number.parseFloat(data.change) || 0;
+            const percent = Number.parseFloat(String(data.change_percent).replace("%", "")) || 0;
+            const positive = change >= 0;
+            const updated = data.updated_at || "Recently";
+
+            return `
+            <article class="stock-card">
+                <div class="stock-card-header">
+                    <h3>${escapeHtml(data.symbol)}</h3>
+                    <span class="change ${positive ? "positive" : "negative"}">
+                        ${positive ? "▲" : "▼"} ${money(Math.abs(change))} (${percent.toFixed(2)}%)
+                    </span>
+                </div>
+                <p class="stock-subtitle">Market quote</p>
+                <div class="stock-price">${money(data.price)}</div>
+                <hr class="stock-divider">
+                <div class="stock-details">
+                    <div><span>Day high</span><strong>${money(data.high)}</strong></div>
+                    <div><span>Day low</span><strong>${money(data.low)}</strong></div>
+                </div>
+                <div class="stock-footer">
+                    <span class="updated">Updated ${escapeHtml(updated)}</span>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+                        <button class="ai-button" data-ai="${escapeHtml(data.symbol)}" type="button">✦ AI insights</button>
+                        <button class="remove-btn" data-remove="${escapeHtml(data.symbol)}">Remove</button>
+                    </div>
+                </div>
+            </article>`;
+        }
+
+        function renderErrorCard(symbol, message) {
+            return `
+            <article class="stock-card">
+                <div class="stock-card-header">
+                    <h3>${escapeHtml(symbol)}</h3>
+                    <button class="remove-btn" data-remove="${escapeHtml(symbol)}">Remove</button>
+                </div>
+                <button class="ai-button" style="margin-top:0;margin-bottom:12px"
+                    data-ai="${escapeHtml(symbol)}" type="button">✦ AI insights</button>
+                <p class="stock-subtitle">Quote unavailable</p>
+                <div class="error-message">${escapeHtml(message)}</div>
+            </article>`;
+        }
+
+        async function loadQuote(symbol) {
+            try {
+                const data = await api(`/api/stock/${encodeURIComponent(symbol)}`);
+                if (data.error || data.message) throw new Error(data.error || data.message);
+                if (data.price == null) throw new Error("No quote is available for this symbol.");
+
+                checkAlerts(data);
+                previousPrices[symbol] = Number(data.price);
+
+                const card = [...$("watchlistGrid").children].find(
+                    element => element.querySelector("h3")?.textContent === symbol
+                );
+
+                if (card) {
+                    const wrapper = document.createElement("div");
+                    wrapper.innerHTML = renderQuoteCard(data);
+                    card.replaceWith(wrapper.firstElementChild);
+                }
+
+                $("lastUpdate").textContent = new Date().toLocaleTimeString([], {
+                    hour: "2-digit", minute: "2-digit"
+                });
+                return true;
+            } catch (error) {
+                const card = [...$("watchlistGrid").children].find(
+                    element => element.querySelector("h3")?.textContent === symbol
+                );
+
+                if (card) {
+                    const wrapper = document.createElement("div");
+                    wrapper.innerHTML = renderErrorCard(symbol, error.message);
+                    card.replaceWith(wrapper.firstElementChild);
+                }
+                return false;
+            }
+        }
+
+        async function loadWatchlist() {
+            try {
+                const data = await api("/api/watchlist");
+                watchlist = data.symbols || [];
+                $("watchCount").textContent = watchlist.length;
+                updateSelects();
+
+                $("watchlistGrid").innerHTML = watchlist.length
+                    ? watchlist.map(renderLoadingCard).join("")
+                    : '<p class="muted">Your watchlist is empty. Add a stock above.</p>';
+
+                if (!watchlist.length) {
+                    $("quoteStatus").textContent = "● No stocks";
+                    drawChart([]);
+                    $("aiStatus").textContent = "Add a stock to your watchlist to begin.";
+                    return;
+                }
+
+                let successful = 0;
+                for (const symbol of watchlist) {
+                    if (await loadQuote(symbol)) successful++;
+                    await new Promise(resolve => setTimeout(resolve, 1200));
+                }
+
+                $("quoteStatus").textContent = `● ${successful} quote(s) loaded`;
+                await loadHistory();
+            } catch (error) {
+                toast(error.message, "error");
+                $("quoteStatus").textContent = "● Could not load watchlist";
+            }
+        }
+
+        $("addStockForm").addEventListener("submit", async event => {
+            event.preventDefault();
+            const symbol = $("stockSymbol").value.trim().toUpperCase();
+
+            if (!/^[A-Z0-9.-]{1,15}$/.test(symbol)) {
+                toast("Enter a valid ticker symbol.", "error");
+                return;
+            }
+
+            try {
+                await api("/api/watchlist", {
+                    method: "POST",
+                    body: JSON.stringify({ symbol })
+                });
+                $("stockSymbol").value = "";
+                toast(`${symbol} added to your watchlist.`, "success");
+                await loadWatchlist();
+            } catch (error) {
+                toast(error.message, "error");
+            }
+        });
+
+        $("watchlistGrid").addEventListener("click", async event => {
+            const aiButton = event.target.closest("[data-ai]");
+            if (aiButton) {
+                generateAIInsights(aiButton.dataset.ai);
+                return;
+            }
+
+            const button = event.target.closest("[data-remove]");
+            if (!button) return;
+
+            const symbol = button.dataset.remove;
+            try {
+                await api(`/api/watchlist/${encodeURIComponent(symbol)}`, { method: "DELETE" });
+                delete previousPrices[symbol];
+                alerts = alerts.filter(alert => alert.symbol !== symbol);
+                renderAlerts();
+                toast(`${symbol} removed from your watchlist.`, "success");
+                await loadWatchlist();
+            } catch (error) {
+                toast(error.message, "error");
+            }
+        });
+
+        $("refreshButton").addEventListener("click", loadWatchlist);
+
+        async function loadHistory() {
+            const symbol = $("historySymbol").value;
+            if (!symbol) {
+                drawChart([]);
+                return;
+            }
+
+            try {
+                const data = await api(`/api/history/${encodeURIComponent(symbol)}`);
+                const records = data.history || data.records || data || [];
+                drawChart(Array.isArray(records) ? records : []);
+            } catch (error) {
+                $("historyMessage").textContent = error.message;
+                drawChart([]);
+            }
+        }
+
+        $("historySymbol").addEventListener("change", loadHistory);
+
+        function drawChart(records) {
+            const canvas = $("priceChart");
+            const container = canvas.parentElement;
+            const rect = container.getBoundingClientRect();
+            const ratio = window.devicePixelRatio || 1;
+
+            canvas.width = Math.max(1, rect.width * ratio);
+            canvas.height = Math.max(1, rect.height * ratio);
+
+            const ctx = canvas.getContext("2d");
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+            const width = rect.width;
+            const height = rect.height;
+            ctx.clearRect(0, 0, width, height);
+
+            const valid = records
+                .map(record => ({ price: Number(record.price), time: record.time || "" }))
+                .filter(record => Number.isFinite(record.price));
+
+            if (!valid.length) {
+                ctx.fillStyle = "#91a7c6";
+                ctx.font = "14px Segoe UI";
+                ctx.textAlign = "center";
+                ctx.fillText("No saved price history yet", width / 2, height / 2);
+                ["latestPrice", "highestPrice", "lowestPrice"].forEach(id => $(id).textContent = "—");
+                $("historyMessage").textContent = "Prices are saved when the API returns successful quotes.";
+                return;
+            }
+
+            const prices = valid.map(record => record.price);
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            const spread = max - min || Math.max(max * 0.01, 1);
+            const left = 58, right = 18, top = 22, bottom = 36;
+            const plotWidth = Math.max(1, width - left - right);
+            const plotHeight = Math.max(1, height - top - bottom);
+
+            ctx.font = "11px Segoe UI";
+            ctx.textAlign = "right";
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i <= 4; i++) {
+                const y = top + plotHeight * i / 4;
+                const value = max + (min - max) * i / 4;
+                ctx.strokeStyle = "#2b3c59";
+                ctx.setLineDash([4, 5]);
+                ctx.beginPath();
+                ctx.moveTo(left, y);
+                ctx.lineTo(width - right, y);
+                ctx.stroke();
+
+                ctx.setLineDash([]);
+                ctx.fillStyle = "#91a7c6";
+                ctx.fillText("$" + value.toFixed(2), left - 8, y + 4);
+            }
+
+            const points = valid.map((record, i) => ({
+                x: left + (valid.length === 1 ? plotWidth / 2 : i * plotWidth / (valid.length - 1)),
+                y: top + (max - record.price) / spread * plotHeight
+            }));
+
+            const gradient = ctx.createLinearGradient(0, top, 0, height - bottom);
+            gradient.addColorStop(0, "rgba(112,133,255,0.32)");
+            gradient.addColorStop(1, "rgba(112,133,255,0.01)");
+
+            ctx.beginPath();
+            points.forEach((point, i) => {
+                if (i === 0) ctx.moveTo(point.x, point.y);
+                else ctx.lineTo(point.x, point.y);
+            });
+
+            if (points.length > 1) {
+                ctx.lineTo(points[points.length - 1].x, height - bottom);
+                ctx.lineTo(points[0].x, height - bottom);
+                ctx.closePath();
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
+
+            ctx.beginPath();
+            points.forEach((point, i) => {
+                if (i === 0) ctx.moveTo(point.x, point.y);
+                else ctx.lineTo(point.x, point.y);
+            });
+            ctx.strokeStyle = "#8295ff";
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = "round";
+            ctx.lineCap = "round";
+            ctx.stroke();
+
+            const last = points[points.length - 1];
+            ctx.beginPath();
+            ctx.arc(last.x, last.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = "#a8b5ff";
+            ctx.fill();
+
+            $("latestPrice").textContent = money(prices[prices.length - 1]);
+            $("highestPrice").textContent = money(max);
+            $("lowestPrice").textContent = money(min);
+            $("historyMessage").textContent =
+                `${valid.length} saved record(s) for ${$("historySymbol").value}. These are saved quote snapshots, not necessarily intraday trading data.`;
+        }
+
+        $("alertForm").addEventListener("submit", event => {
+            event.preventDefault();
+
+            const symbol = $("alertSymbol").value;
+            const direction = $("alertDirection").value;
+            const threshold = Number($("alertThreshold").value);
+
+            if (!symbol || !Number.isFinite(threshold) || threshold <= 0) {
+                toast("Choose a stock and enter a threshold greater than zero.", "error");
+                return;
+            }
+
+            alerts.push({
+                id: Date.now(),
+                symbol,
+                direction,
+                threshold,
+                triggered: false
+            });
+
+            $("alertThreshold").value = "";
+            $("alertFormMessage").textContent = `Alert created for ${symbol}.`;
+            renderAlerts();
+            toast(`Alert created for ${symbol}.`, "success");
+        });
+
+        function renderAlerts() {
+            $("alertCount").textContent = alerts.length;
+            $("alertList").innerHTML = alerts.length ? alerts.map(alert => `
+            <div class="alert-item">
+                <div>
+                    <strong>${escapeHtml(alert.symbol)} · ${alert.direction === "up" ? "▲ Rise" : "▼ Fall"}</strong>
+                    <p class="muted" style="margin:5px 0 0">
+                        Daily change ${alert.direction === "up" ? "≥" : "≤"}
+                        ${alert.threshold.toFixed(2)}% · ${alert.triggered ? "Triggered" : "Active"}
+                    </p>
+                </div>
+                <button class="remove-btn" data-alert-remove="${alert.id}">Remove</button>
+            </div>
+        `).join("") : '<p class="muted">No alerts created yet.</p>';
+        }
+
+        $("alertList").addEventListener("click", event => {
+            const button = event.target.closest("[data-alert-remove]");
+            if (!button) return;
+            alerts = alerts.filter(alert => alert.id !== Number(button.dataset.alertRemove));
+            renderAlerts();
+        });
+
+        function checkAlerts(data) {
+            const percent = Number.parseFloat(String(data.change_percent).replace("%", ""));
+            if (!Number.isFinite(percent)) return;
+
+            alerts.forEach(alert => {
+                if (alert.symbol !== data.symbol || alert.triggered) return;
+
+                const triggered = alert.direction === "up"
+                    ? percent >= alert.threshold
+                    : percent <= -alert.threshold;
+
+                if (triggered) {
+                    alert.triggered = true;
+                    toast(`${alert.symbol} met your ${alert.direction} alert: ${percent.toFixed(2)}% daily change.`, "success");
+                    renderAlerts();
+                }
+            });
+        }
+
+        async function generateAIInsights(symbol) {
+            const chosen = symbol || $("aiSymbol").value;
+
+            if (!chosen) {
+                $("aiStatus").textContent = "Add a stock to your watchlist first.";
+                $("aiStatus").classList.add("error");
+                return;
+            }
+
+            $("aiSymbol").value = chosen;
+            $("aiOutput").textContent = "";
+            $("aiStatus").textContent = `Asking Gemini to analyze ${chosen}…`;
+            $("aiStatus").classList.remove("error");
+            $("aiAnalyzeButton").disabled = true;
+            document.querySelectorAll("[data-ai]").forEach(button => button.disabled = true);
+
+            try {
+                const result = await api("/api/ai-insights", {
+                    method: "POST",
+                    body: JSON.stringify({ symbol: chosen })
+                });
+
+                $("aiOutput").textContent = result.insights || "Gemini returned an empty report.";
+                const count = result.data_points ?? "unknown";
+                $("aiStatus").textContent =
+                    `Analysis complete for ${chosen}. Based on ${count} saved data point(s). Educational use only — not financial advice.`;
+                $("aiInsights").scrollIntoView({ behavior: "smooth", block: "start" });
+            } catch (error) {
+                $("aiStatus").textContent = `Could not generate insights: ${error.message}`;
+                $("aiStatus").classList.add("error");
+            } finally {
+                $("aiAnalyzeButton").disabled = false;
+                document.querySelectorAll("[data-ai]").forEach(button => button.disabled = false);
+            }
+        }
+
+        $("aiAnalyzeButton").addEventListener("click", () => generateAIInsights());
+
+        document.querySelectorAll(".nav").forEach(button => {
+            button.addEventListener("click", () => {
+                document.querySelectorAll(".nav").forEach(item => item.classList.remove("active"));
+                button.classList.add("active");
+                $(button.dataset.target).scrollIntoView({ behavior: "smooth", block: "start" });
+            });
+        });
+
+        let resizeTimer;
+        window.addEventListener("resize", () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(loadHistory, 150);
+        });
+
+        renderAlerts();
+        loadWatchlist();
+    </script>
+</body>
+
+</html>
