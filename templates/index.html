@@ -3,690 +3,403 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StockWatch | Market Dashboard</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>StockWatch | Market Watchdog</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg: #080d1c;
-            --sidebar: #0d162b;
-            --card: #131f36;
-            --border: #263957;
-            --text: #f4f7ff;
-            --muted: #91a7c6;
-            --blue: #7085ff;
-            --purple: #8d69f5;
-            --green: #20d6a0;
-            --red: #ff718e;
+            --bg: #080d1b;
+            --panel: #111b30;
+            --panel2: #17243c;
+            --border: #293956;
+            --text: #f3f6ff;
+            --muted: #9db0d0;
+            --purple: #8075ff;
+            --green: #37d99a;
+            --red: #ff7185;
+            --amber: #ffc66d
         }
 
         * {
-            box-sizing: border-box;
-        }
-
-        html {
-            scroll-behavior: smooth;
+            box-sizing: border-box
         }
 
         body {
             margin: 0;
             background: var(--bg);
             color: var(--text);
-            font-family: Inter, "Segoe UI", Arial, sans-serif;
-            font-size: 14px;
+            font-family: Inter, Segoe UI, Arial, sans-serif
         }
 
         button,
         input,
         select {
-            font: inherit;
+            font: inherit
         }
 
         button {
             cursor: pointer;
-        }
-
-        .app {
-            display: grid;
-            grid-template-columns: 220px minmax(0, 1fr);
-            min-height: 100vh;
-        }
-
-        .sidebar {
-            background: var(--sidebar);
-            border-right: 1px solid var(--border);
-            padding: 24px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-
-        .brand-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 13px;
-            display: grid;
-            place-items: center;
-            background: linear-gradient(135deg, var(--blue), var(--purple));
-            font-size: 23px;
-        }
-
-        .brand h2 {
-            font-size: 20px;
-            margin: 0;
-        }
-
-        .brand p,
-        .muted {
-            color: var(--muted);
-        }
-
-        .brand p {
-            margin: 4px 0 0;
-            font-size: 12px;
-        }
-
-        .eyebrow {
-            color: var(--blue);
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-
-        .nav {
-            width: 100%;
-            text-align: left;
-            padding: 12px;
-            color: var(--muted);
-            background: transparent;
-            border: 1px solid transparent;
-            border-radius: 10px;
-            margin-bottom: 4px;
-        }
-
-        .nav:hover,
-        .nav.active {
-            color: white;
-            background: #1a2a49;
-            border-color: #30486f;
-        }
-
-        .sidebar-note {
-            margin-top: auto;
-            padding: 14px;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            line-height: 1.6;
-            color: var(--muted);
-        }
-
-        main {
-            min-width: 0;
-            padding: 26px;
-            max-width: 1600px;
-            width: 100%;
-            margin: 0 auto;
-        }
-
-        .topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-
-        h1 {
-            font-size: clamp(25px, 3vw, 34px);
-            margin: 8px 0;
-            letter-spacing: -1px;
-        }
-
-        h2,
-        h3,
-        p {
-            overflow-wrap: anywhere;
-        }
-
-        h2 {
-            font-size: 21px;
-        }
-
-        h3 {
-            font-size: 16px;
-        }
-
-        p {
-            line-height: 1.5;
-        }
-
-        .top-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .status {
-            color: var(--muted);
-            padding: 10px 13px;
-            border: 1px solid var(--border);
-            border-radius: 30px;
-        }
-
-        .btn,
-        .ai-button {
             border: 0;
             border-radius: 10px;
             padding: 11px 15px;
+            background: var(--purple);
             color: white;
-            background: linear-gradient(120deg, var(--blue), var(--purple));
-            font-weight: 700;
+            font-weight: 700
         }
 
-        .btn:hover,
-        .ai-button:hover {
-            filter: brightness(1.1);
+        button.secondary {
+            background: #233452;
+            border: 1px solid var(--border)
         }
 
-        button:disabled {
-            opacity: .6;
-            cursor: wait;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-            margin-bottom: 28px;
-        }
-
-        .stat,
-        .panel,
-        .stock-card,
-        .chart-panel {
-            background: linear-gradient(145deg, #15223b, #10192d);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-        }
-
-        .stat {
-            padding: 18px;
-            min-width: 0;
-        }
-
-        .stat p {
-            color: var(--muted);
-            margin: 0 0 12px;
-        }
-
-        .stat strong {
-            display: block;
-            font-size: clamp(20px, 2vw, 27px);
-            overflow-wrap: anywhere;
-        }
-
-        section {
-            margin-bottom: 30px;
-            scroll-margin-top: 20px;
-        }
-
-        .section-heading {
-            margin-bottom: 15px;
-        }
-
-        .section-heading h2 {
-            margin: 0 0 6px;
-        }
-
-        .section-heading p {
-            margin: 0;
-            color: var(--muted);
-        }
-
-        .panel {
-            padding: 20px;
-        }
-
-        .add-form {
-            display: flex;
-            align-items: end;
-            gap: 12px;
-        }
-
-        .field {
-            flex: 1;
-            min-width: 0;
-        }
-
-        label {
-            display: block;
-            color: var(--muted);
-            margin-bottom: 8px;
+        button.danger {
+            background: #482332;
+            color: #ffb4c0
         }
 
         input,
         select {
-            width: 100%;
-            padding: 12px;
-            background: #0b1325;
-            color: var(--text);
-            border: 1px solid #304363;
+            background: #091225;
+            border: 1px solid var(--border);
             border-radius: 10px;
-            outline: none;
+            padding: 12px;
+            color: var(--text);
+            min-width: 0
         }
 
-        input:focus,
-        select:focus {
-            border-color: var(--blue);
-        }
-
-        .watchlist-grid {
+        .shell {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 340px));
-            gap: 14px;
-            align-items: stretch;
+            grid-template-columns: 235px minmax(0, 1fr);
+            min-height: 100vh
         }
 
-        .stock-card {
-            padding: 17px;
-            min-width: 0;
-            width: 100%;
-            max-width: 340px;
-            transition: transform .18s ease, border-color .18s ease;
+        .sidebar {
+            background: #0d172b;
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            position: sticky;
+            top: 0;
+            height: 100vh
         }
 
-        .stock-card:hover {
-            transform: translateY(-2px);
-            border-color: #526ba0;
+        .brand {
+            font-size: 25px;
+            font-weight: 850;
+            margin-bottom: 6px
         }
 
-        .stock-card-header {
+        .tagline,
+        .muted {
+            color: var(--muted)
+        }
+
+        .eyebrow {
+            font-size: 12px;
+            color: #8d91ff;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase
+        }
+
+        nav {
+            display: grid;
+            gap: 8px;
+            margin-top: 35px
+        }
+
+        nav button {
+            text-align: left;
+            background: transparent;
+            color: var(--muted);
+            font-weight: 600
+        }
+
+        nav button.active,
+        nav button:hover {
+            background: #1b2b48;
+            color: white
+        }
+
+        .side-note {
+            margin-top: 35px;
+            padding: 14px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.6
+        }
+
+        main {
+            padding: 30px;
+            min-width: 0
+        }
+
+        .topbar {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap
+        }
+
+        .title {
+            font-size: clamp(27px, 4vw, 40px);
+            margin: 8px 0
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
             gap: 10px;
+            flex-wrap: wrap
         }
 
-        .stock-card h3 {
-            font-size: 19px;
-            margin: 0;
-            letter-spacing: .4px;
-        }
-
-        .stock-subtitle {
+        .status {
+            border: 1px solid var(--border);
+            border-radius: 25px;
+            padding: 10px 13px;
             color: var(--muted);
-            margin: 7px 0 14px;
+            font-size: 13px
         }
 
-        .stock-price {
-            font-size: 30px;
-            font-weight: 800;
-            letter-spacing: -1px;
-            margin: 10px 0 15px;
+        .section {
+            margin-top: 28px;
+            scroll-margin-top: 20px
         }
 
-        .change {
-            font-size: 11px;
+        .section h2 {
+            font-size: 22px;
+            margin: 0 0 8px
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px
+        }
+
+        .panel,
+        .metric,
+        .stock-card {
+            background: linear-gradient(145deg, var(--panel), #0f192c);
+            border: 1px solid var(--border);
+            border-radius: 17px;
+            padding: 20px;
+            min-width: 0
+        }
+
+        .metric .label {
+            color: var(--muted)
+        }
+
+        .metric .value {
+            font-size: 29px;
             font-weight: 800;
-            padding: 6px 8px;
-            border-radius: 8px;
-            white-space: nowrap;
+            margin: 12px 0 4px
+        }
+
+        .formrow {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap
+        }
+
+        .formrow input {
+            flex: 1
+        }
+
+        .stocks {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 16px
+        }
+
+        .stock-card .symbol {
+            font-size: 20px;
+            font-weight: 800
+        }
+
+        .price {
+            font-size: 27px;
+            font-weight: 850;
+            margin: 14px 0
         }
 
         .positive {
-            color: var(--green);
-            background: #103a37;
+            color: var(--green)
         }
 
         .negative {
-            color: var(--red);
-            background: #3a2035;
+            color: var(--red)
         }
 
-        .stock-divider {
-            border: 0;
-            border-top: 1px solid var(--border);
-            margin: 12px 0;
+        .quote-error {
+            color: var(--amber);
+            font-size: 13px;
+            line-height: 1.5
         }
 
-        .stock-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .stock-details span,
-        .updated {
-            display: block;
-            color: var(--muted);
-            font-size: 12px;
-        }
-
-        .stock-details strong {
-            display: block;
-            margin-top: 5px;
-            font-size: 14px;
-        }
-
-        .stock-footer {
+        .stock-actions {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            gap: 7px;
             flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 15px;
+            margin-top: 14px
         }
 
-        .remove-btn {
-            padding: 8px 10px;
-            border-radius: 9px;
-            color: var(--red);
-            border: 1px solid #663047;
-            background: #291b30;
-            font-weight: 700;
+        .stock-actions button {
+            padding: 9px 10px;
+            font-size: 12px
         }
 
-        .remove-btn:hover {
-            background: #452036;
-        }
-
-        .error-message {
-            color: var(--red);
-            background: #1a263e;
-            border: 1px solid #663047;
-            padding: 12px;
-            border-radius: 10px;
-            line-height: 1.5;
-            margin-top: 12px;
-            overflow-wrap: anywhere;
-        }
-
-        .chart-panel {
-            padding: 18px;
-            min-width: 0;
-        }
-
-        .chart-container {
-            width: 100%;
-            height: 300px;
-            position: relative;
-        }
-
-        canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        .chart-stats {
+        .two-col {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-            margin-top: 14px;
+            grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr);
+            gap: 16px
         }
 
-        .chart-stat {
-            background: #17233b;
-            border-radius: 10px;
-            padding: 12px;
-            min-width: 0;
-        }
-
-        .chart-stat span {
-            display: block;
-            font-size: 12px;
-            color: var(--muted);
-            margin-bottom: 7px;
-        }
-
-        .chart-stat strong {
-            font-size: 17px;
-            overflow-wrap: anywhere;
-        }
-
-        .alert-layout {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .alert-item {
+        .panel-head {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
             gap: 12px;
-            padding: 13px;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            margin-top: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px
         }
 
-        .ai-insights-panel {
-            margin: 22px 0;
-            padding: 22px;
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            background: linear-gradient(145deg, #15223b, #10192d);
+        .panel-head h2 {
+            margin: 0
         }
 
-        .ai-insights-panel h2 {
-            margin-top: 0;
-        }
-
-        .ai-insights-copy {
-            color: var(--muted);
-            margin-bottom: 16px;
-            line-height: 1.6;
-        }
-
-        .ai-status {
-            color: var(--muted);
-            margin-top: 14px;
-        }
-
-        .ai-status.error {
-            color: var(--red);
-        }
-
-        .ai-insights-output {
+        #insightOutput {
             white-space: pre-wrap;
             line-height: 1.75;
-            overflow-wrap: anywhere;
-            color: var(--text);
+            color: #dce5f7
         }
 
-        .ai-insights-output:empty {
-            display: none;
+        .message {
+            padding: 12px;
+            border-radius: 10px;
+            background: #0b1426;
+            color: var(--muted);
+            line-height: 1.6
         }
 
-        .toast-container {
-            position: fixed;
-            z-index: 1000;
-            right: 16px;
-            top: 16px;
+        .pill {
+            font-size: 12px;
+            border-radius: 20px;
+            padding: 5px 9px;
+            background: #233452;
+            color: #cbd8f5
+        }
+
+        .field-label {
+            display: grid;
+            gap: 7px;
+            color: var(--muted);
+            font-size: 13px
+        }
+
+        .alert-list,
+        .history-list {
+            display: grid;
+            gap: 10px
+        }
+
+        .alert-item,
+        .history-item {
             display: flex;
-            flex-direction: column;
-            gap: 8px;
-            width: min(360px, calc(100vw - 32px));
-        }
-
-        .toast {
-            background: #17243e;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: #0b1426;
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 13px 15px;
-            box-shadow: 0 12px 32px #0005;
-            line-height: 1.5;
-            overflow-wrap: anywhere;
-        }
-
-        .toast.error {
-            border-color: #8e3450;
-        }
-
-        .toast.success {
-            border-color: #176c59;
+            border-radius: 10px
         }
 
         footer {
-            text-align: center;
             color: var(--muted);
             font-size: 12px;
-            padding: 12px;
+            text-align: center;
+            padding: 30px 0 10px
         }
 
-        @media (max-width: 1000px) {
-            .app {
-                grid-template-columns: 175px minmax(0, 1fr);
+        .hidden {
+            display: none !important
+        }
+
+        @media(max-width:1050px) {
+
+            .stocks,
+            .grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr))
             }
 
-            main {
-                padding: 20px;
-            }
-
-            .stats {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .watchlist-grid {
-                grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
-            }
-
-            .stock-card {
-                max-width: none;
+            .two-col {
+                grid-template-columns: 1fr
             }
         }
 
-        @media (max-width: 680px) {
-            .app {
-                display: block;
+        @media(max-width:720px) {
+            .shell {
+                grid-template-columns: 1fr
             }
 
             .sidebar {
-                padding: 12px;
-                gap: 10px;
-                position: relative;
+                position: static;
+                height: auto;
+                padding: 16px
             }
 
-            .brand {
-                margin: 0;
+            .sidebar nav {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                margin-top: 16px
             }
 
-            .sidebar .eyebrow,
-            .sidebar-note {
-                display: none;
+            .sidebar nav button {
+                font-size: 12px;
+                padding: 9px
             }
 
-            .sidebar>div:nth-of-type(2) {
-                display: flex;
-                gap: 6px;
-                overflow-x: auto;
-                padding-bottom: 3px;
-            }
-
-            .nav {
-                width: auto;
-                flex: 0 0 auto;
-                margin: 0;
-                padding: 9px 12px;
-                white-space: nowrap;
+            .side-note {
+                display: none
             }
 
             main {
-                padding: 16px 12px;
+                padding: 18px
             }
 
-            .topbar {
-                align-items: flex-start;
-                flex-direction: column;
-                gap: 12px;
+            .stocks,
+            .grid {
+                grid-template-columns: 1fr
             }
 
-            .stats {
-                grid-template-columns: 1fr;
-                gap: 10px;
-            }
-
-            .stat {
-                padding: 15px;
-            }
-
-            .add-form {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .watchlist-grid {
-                grid-template-columns: minmax(0, 1fr);
-            }
-
-            .stock-card {
-                max-width: none;
-                padding: 15px;
-            }
-
-            .alert-layout {
-                grid-template-columns: 1fr;
-            }
-
-            .chart-container {
-                height: 240px;
-            }
-
-            .chart-stats {
-                grid-template-columns: 1fr;
-            }
-
-            .panel,
-            .chart-panel {
-                padding: 15px;
-            }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-
-            *,
-            *::before,
-            *::after {
-                scroll-behavior: auto !important;
-                transition: none !important;
+            .title {
+                font-size: 28px
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="app">
+    <div class="shell">
         <aside class="sidebar">
-            <div class="brand">
-                <div class="brand-icon">↗</div>
-                <div>
-                    <h2>StockWatch</h2>
-                    <p>Market intelligence</p>
-                </div>
-            </div>
-
-            <div class="eyebrow">Workspace</div>
-            <div>
-                <button class="nav active" data-target="overview">▦ Overview</button>
-                <button class="nav" data-target="watchlist">☆ Watchlist</button>
-                <button class="nav" data-target="aiInsights">✦ Gemini AI</button>
-                <button class="nav" data-target="history">⌁ Price History</button>
-                <button class="nav" data-target="alerts">♧ Price Alerts</button>
-            </div>
-
-            <div class="sidebar-note">
-                <strong>Market monitor</strong>
-                <p>Follow selected stocks, view saved price snapshots, and set browser alerts.</p>
+            <div class="brand">↗ StockWatch</div>
+            <div class="muted">Real-time market watchdog</div>
+            <nav>
+                <button class="active" data-target="overview">▦ Overview</button>
+                <button data-target="watchlist">☆ Watchlist</button>
+                <button data-target="aiSection">✦ Gemini AI</button>
+                <button data-target="historySection">⌁ Price History</button>
+                <button data-target="alertsSection">♧ Price Alerts</button>
+                <button data-target="architecture">⚙ Architecture</button>
+            </nav>
+            <div class="side-note">
+                <strong>System flow</strong><br>
+                Input → API Client → JSON Parser → Data Processor → Display → Scheduler<br><br>
+                <span class="muted">Snapshots are stored in CSV where the deployment filesystem permits.</span>
             </div>
         </aside>
 
@@ -694,617 +407,391 @@
             <header class="topbar" id="overview">
                 <div>
                     <div class="eyebrow">Your financial workspace</div>
-                    <h1>Market Overview</h1>
-                    <p class="muted">Track your watchlist, review prices, and manage alerts.</p>
+                    <h1 class="title">Market Overview</h1>
+                    <div class="muted">Fetch, parse, process, display, save and review stock data.</div>
                 </div>
-                <div class="top-actions">
-                    <span class="status" id="quoteStatus">● Loading quotes</span>
-                    <button class="btn" id="refreshButton">↻ Refresh</button>
-                </div>
+                <div class="row"><span class="status" id="quoteStatus">Checking service…</span><button id="refreshBtn">↻
+                        Refresh quotes</button></div>
             </header>
 
-            <div class="stats">
-                <div class="stat">
-                    <p>Watchlist stocks</p>
-                    <strong id="watchCount">0</strong>
-                    <span class="muted">Stocks you're tracking</span>
+            <section class="section grid">
+                <div class="metric">
+                    <div class="label">Watchlist stocks</div>
+                    <div class="value" id="stockCount">3</div>
+                    <div class="muted">Symbols being tracked</div>
                 </div>
-                <div class="stat">
-                    <p>Last successful update</p>
-                    <strong id="lastUpdate">—</strong>
-                    <span class="muted">Latest successful quote</span>
+                <div class="metric">
+                    <div class="label">Saved snapshots</div>
+                    <div class="value" id="snapshotCount">0</div>
+                    <div class="muted">CSV price records</div>
                 </div>
-                <div class="stat">
-                    <p>Active price alerts</p>
-                    <strong id="alertCount">0</strong>
-                    <span class="muted">Alerts in this browser session</span>
+                <div class="metric">
+                    <div class="label">Active alerts</div>
+                    <div class="value" id="alertCount">0</div>
+                    <div class="muted">Alerts in this browser</div>
                 </div>
-            </div>
+            </section>
 
-            <section id="addStock">
-                <div class="section-heading">
-                    <h2>Add a stock</h2>
-                    <p>Enter a ticker symbol to add it to your watchlist.</p>
-                </div>
-                <form class="panel add-form" id="addStockForm">
-                    <div class="field">
-                        <label for="stockSymbol">Stock symbol</label>
-                        <input id="stockSymbol" placeholder="For example, AAPL" maxlength="15" required>
-                    </div>
-                    <button class="btn" type="submit">+ Add stock</button>
+            <section class="section panel">
+                <h2>Input Handler · Add a stock</h2>
+                <p class="muted">Enter a stock ticker, such as AAPL, MSFT or GOOGL.</p>
+                <form id="addForm" class="formrow">
+                    <input id="symbolInput" maxlength="20" placeholder="Stock symbol (e.g. AAPL)" required>
+                    <button type="submit">＋ Add stock</button>
                 </form>
+                <p class="muted" id="addMessage" aria-live="polite"></p>
             </section>
 
-            <section id="watchlist">
-                <div class="section-heading">
-                    <h2>My Watchlist</h2>
-                    <p>Your selected stocks and their latest available quotes.</p>
+            <section class="section" id="watchlist">
+                <div class="panel-head">
+                    <div>
+                        <h2>My Watchlist</h2>
+                        <div class="muted">Latest available quotes and daily metrics</div>
+                    </div><span class="pill">API Client · JSON Parser</span>
                 </div>
-                <div class="watchlist-grid" id="watchlistGrid"></div>
+                <div class="stocks" id="watchlistGrid">
+                    <div class="message">Loading watchlist…</div>
+                </div>
             </section>
 
-            <section id="aiInsights" class="ai-insights-panel">
-                <h2>✦ Gemini AI Insights</h2>
-                <p class="ai-insights-copy">
-                    Get an educational summary of saved StockWatch history for a stock.
-                    AI-generated insights are for learning only, not financial advice.
-                </p>
-                <div class="field" style="max-width:240px;margin-bottom:14px">
-                    <label for="aiSymbol">Choose stock</label>
-                    <select id="aiSymbol"></select>
-                </div>
-                <button class="ai-button" id="aiAnalyzeButton" type="button">✦ Generate AI insights</button>
-                <p class="ai-status" id="aiStatus" role="status">Choose a stock and generate a report.</p>
-                <div class="ai-insights-output" id="aiOutput"></div>
-            </section>
-
-            <section id="history">
-                <div class="section-heading">
-                    <h2>Price History</h2>
-                    <p>Explore saved price snapshots with interactive charts.</p>
-                </div>
-                <div class="chart-panel">
-                    <div class="field" style="max-width:240px;margin-bottom:15px">
-                        <label for="historySymbol">Choose stock</label>
-                        <select id="historySymbol"></select>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="priceChart" aria-label="Stock price history chart"></canvas>
-                    </div>
-                    <div class="chart-stats">
-                        <div class="chart-stat"><span>Latest saved price</span><strong id="latestPrice">—</strong></div>
-                        <div class="chart-stat"><span>Highest saved price</span><strong id="highestPrice">—</strong>
+            <section class="section two-col" id="historySection">
+                <div class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Price History</h2>
+                            <div class="muted">Saved snapshots, not guaranteed continuous intraday data</div>
                         </div>
-                        <div class="chart-stat"><span>Lowest saved price</span><strong id="lowestPrice">—</strong></div>
+                        <select id="historySymbol" aria-label="History stock"></select>
                     </div>
-                    <p class="muted" id="historyMessage">Saved quote snapshots appear here.</p>
+                    <canvas id="priceChart" height="125"></canvas>
+                    <div class="message" id="historyMessage">Select a ticker to load saved history.</div>
+                </div>
+                <div class="panel">
+                    <div class="panel-head">
+                        <h2>Data Processor</h2><span class="pill">Metrics</span>
+                    </div>
+                    <div class="history-list" id="metricsList">
+                        <div class="message">Metrics appear after quotes load.</div>
+                    </div>
                 </div>
             </section>
 
-            <section id="alerts">
-                <div class="section-heading">
+            <section class="section two-col" id="aiSection">
+                <div class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>✦ Gemini AI Insights</h2>
+                            <div class="muted">Educational analysis of saved StockWatch data</div>
+                        </div><span class="pill">AI module</span>
+                    </div>
+                    <label class="field-label">Choose a stock
+                        <select id="aiSymbol"></select>
+                    </label>
+                    <div class="row" style="margin-top:13px"><button id="aiButton">Generate AI report</button><span
+                            class="muted" id="aiStatus" aria-live="polite"></span></div>
+                    <div class="message" id="insightOutput" style="margin-top:15px">Choose a ticker and generate a
+                        report. At least one saved quote or cached quote is required.</div>
+                </div>
+                <div class="panel">
+                    <h2>Report limitations</h2>
+                    <p class="muted">The report uses saved snapshots and an available cached quote. It does not
+                        automatically fetch news or predict future prices.</p>
+                    <p class="muted">AI output is educational, may be incorrect, and is not financial advice.</p>
+                    <div class="message" id="configStatus">Checking API configuration…</div>
+                </div>
+            </section>
+
+            <section class="section two-col" id="alertsSection">
+                <div class="panel">
                     <h2>Price Alerts</h2>
-                    <p>Get an in-browser notification when a quote meets your daily percentage threshold.</p>
+                    <p class="muted">Create a browser-session alert for a target price. Alerts are checked when a quote
+                        is successfully loaded.</p>
+                    <form id="alertForm" class="formrow">
+                        <select id="alertSymbol" required aria-label="Alert stock"></select>
+                        <select id="alertDirection" aria-label="Alert condition">
+                            <option value="above">Price rises above</option>
+                            <option value="below">Price falls below</option>
+                        </select>
+                        <input id="alertPrice" type="number" min="0.0001" step="any" placeholder="Target price"
+                            required>
+                        <button type="submit">＋ Set alert</button>
+                    </form>
+                    <p id="alertMessage" class="muted" aria-live="polite"></p>
                 </div>
-                <div class="alert-layout">
-                    <div class="panel">
-                        <h3>Create an alert</h3>
-                        <form id="alertForm">
-                            <div class="field" style="margin-bottom:14px">
-                                <label for="alertSymbol">Stock</label>
-                                <select id="alertSymbol" required></select>
-                            </div>
-                            <div class="field" style="margin-bottom:14px">
-                                <label for="alertDirection">Condition</label>
-                                <select id="alertDirection">
-                                    <option value="up">Rises to or above</option>
-                                    <option value="down">Falls to or below</option>
-                                </select>
-                            </div>
-                            <div class="field" style="margin-bottom:14px">
-                                <label for="alertThreshold">Daily change (%)</label>
-                                <input id="alertThreshold" type="number" min="0.01" step="0.01"
-                                    placeholder="For example, 2" required>
-                            </div>
-                            <button class="btn" type="submit">+ Create alert</button>
-                        </form>
-                        <p id="alertFormMessage" class="muted"></p>
+                <div class="panel">
+                    <div class="panel-head">
+                        <h2>Your alerts</h2><button class="secondary" id="clearAlerts">Clear all</button>
                     </div>
-                    <div class="panel">
-                        <h3>Your alerts</h3>
-                        <p class="muted">Alerts are checked when quotes refresh successfully.</p>
-                        <div id="alertList"></div>
+                    <div class="alert-list" id="alertList">
+                        <div class="message">No alerts yet.</div>
                     </div>
                 </div>
             </section>
 
-            <footer>StockWatch · Educational project · Market data may be delayed. Not investment advice.</footer>
+            <section class="section panel" id="schedulerSection">
+                <div class="panel-head">
+                    <div>
+                        <h2>Scheduler · Monitoring Loop</h2>
+                        <div class="muted">Automatically refresh quotes while this page is open.</div>
+                    </div><span class="pill" id="schedulerState">Stopped</span>
+                </div>
+                <div class="formrow">
+                    <label class="field-label">Refresh interval
+                        <select id="refreshInterval">
+                            <option value="60">60 seconds</option>
+                            <option value="120">2 minutes</option>
+                            <option value="300">5 minutes</option>
+                            <option value="600">10 minutes</option>
+                        </select>
+                    </label>
+                    <button id="startScheduler">▶ Start monitoring</button>
+                    <button id="stopScheduler" class="secondary" disabled>■ Stop</button>
+                </div>
+                <p class="muted">Alpha Vantage free-tier request limits still apply. This browser-based scheduler stops
+                    when the page is closed and is not a permanent background worker.</p>
+            </section>
+
+            <section class="section panel" id="architecture">
+                <h2>System Architecture · Module Status</h2>
+                <div class="grid" style="margin-top:15px">
+                    <div class="message"><strong>1. Input Handler</strong><br>Stock symbols, refresh interval, alerts
+                    </div>
+                    <div class="message"><strong>2. API Client</strong><br>Alpha Vantage HTTP requests and cache</div>
+                    <div class="message"><strong>3. JSON Parser</strong><br>Extract quote fields and handle errors</div>
+                    <div class="message"><strong>4. Data Processor</strong><br>Format change, high, low and alert checks
+                    </div>
+                    <div class="message"><strong>5. Display Module</strong><br>Cards, metrics, chart and Gemini report
+                    </div>
+                    <div class="message"><strong>6. Scheduler</strong><br>Browser refresh loop with start/stop</div>
+                    <div class="message"><strong>7. Local Storage</strong><br>CSV snapshots on the server filesystem
+                    </div>
+                    <div class="message"><strong>External Libraries</strong><br>Flask, requests, dotenv, google-genai,
+                        Chart.js</div>
+                    <div class="message"><strong>Frontend</strong><br>Responsive web dashboard instead of terminal-only
+                        UI</div>
+                </div>
+            </section>
+            <footer>StockWatch · Learning project · Market data can be delayed or unavailable.</footer>
         </main>
     </div>
 
-    <div class="toast-container" id="toastContainer"></div>
-
     <script>
         const $ = id => document.getElementById(id);
-        let watchlist = [];
-        let alerts = [];
-        let previousPrices = {};
-
-        function toast(message, type = "") {
-            const item = document.createElement("div");
-            item.className = "toast " + type;
-            item.textContent = message;
-            $("toastContainer").appendChild(item);
-            setTimeout(() => item.remove(), 5500);
-        }
+        let symbols = [];
+        let chart = null;
+        let scheduler = null;
+        let alerts = JSON.parse(sessionStorage.getItem("stockwatchAlerts") || "[]");
+        let latestQuotes = {};
 
         async function api(url, options = {}) {
             const response = await fetch(url, {
                 ...options,
-                headers: {
-                    "Content-Type": "application/json",
-                    ...(options.headers || {})
-                }
+                headers: { "Content-Type": "application/json", ...(options.headers || {}) }
             });
-
             const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(data.error || data.message || "Request failed.");
-            }
+            if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
             return data;
         }
 
         function money(value) {
             const n = Number(value);
-            return Number.isFinite(n)
-                ? n.toLocaleString("en-US", { style: "currency", currency: "USD" })
-                : "—";
+            return Number.isFinite(n) ? n.toLocaleString("en-US", { style: "currency", currency: "USD" }) : "—";
         }
-
         function escapeHtml(value) {
-            return String(value ?? "").replace(/[&<>"']/g, char => ({
-                "&": "&amp;", "<": "&lt;", ">": "&gt;",
-                '"': "&quot;", "'": "&#39;"
-            }[char]));
+            return String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
         }
-
-        function updateSelects() {
-            ["historySymbol", "alertSymbol", "aiSymbol"].forEach(id => {
-                const select = $(id);
-                const oldValue = select.value;
-                select.innerHTML = "";
-
-                watchlist.forEach(symbol => {
-                    const option = document.createElement("option");
-                    option.value = symbol;
-                    option.textContent = symbol;
-                    select.appendChild(option);
-                });
-
-                if (watchlist.includes(oldValue)) select.value = oldValue;
+        function saveAlerts() {
+            sessionStorage.setItem("stockwatchAlerts", JSON.stringify(alerts));
+            renderAlerts();
+        }
+        function populateSelectors() {
+            ["historySymbol", "aiSymbol", "alertSymbol"].forEach(id => {
+                const select = $(id), previous = select.value;
+                select.innerHTML = symbols.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+                if (symbols.includes(previous)) select.value = previous;
             });
-
-            $("alertCount").textContent = alerts.length;
+            $("stockCount").textContent = symbols.length;
         }
-
-        function renderLoadingCard(symbol) {
-            return `
-            <article class="stock-card">
-                <div class="stock-card-header">
-                    <h3>${escapeHtml(symbol)}</h3>
-                    <button class="remove-btn" data-remove="${escapeHtml(symbol)}">Remove</button>
-                </div>
-                <p class="stock-subtitle">Loading quote…</p>
-                <div class="stock-price">—</div>
-                <p class="muted">Waiting for available market data.</p>
-            </article>`;
-        }
-
-        function renderQuoteCard(data) {
-            const change = Number.parseFloat(data.change) || 0;
-            const percent = Number.parseFloat(String(data.change_percent).replace("%", "")) || 0;
-            const positive = change >= 0;
-            const updated = data.updated_at || "Recently";
-
-            return `
-            <article class="stock-card">
-                <div class="stock-card-header">
-                    <h3>${escapeHtml(data.symbol)}</h3>
-                    <span class="change ${positive ? "positive" : "negative"}">
-                        ${positive ? "▲" : "▼"} ${money(Math.abs(change))} (${percent.toFixed(2)}%)
-                    </span>
-                </div>
-                <p class="stock-subtitle">Market quote</p>
-                <div class="stock-price">${money(data.price)}</div>
-                <hr class="stock-divider">
-                <div class="stock-details">
-                    <div><span>Day high</span><strong>${money(data.high)}</strong></div>
-                    <div><span>Day low</span><strong>${money(data.low)}</strong></div>
-                </div>
-                <div class="stock-footer">
-                    <span class="updated">Updated ${escapeHtml(updated)}</span>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-                        <button class="ai-button" data-ai="${escapeHtml(data.symbol)}" type="button">✦ AI insights</button>
-                        <button class="remove-btn" data-remove="${escapeHtml(data.symbol)}">Remove</button>
-                    </div>
-                </div>
-            </article>`;
-        }
-
-        function renderErrorCard(symbol, message) {
-            return `
-            <article class="stock-card">
-                <div class="stock-card-header">
-                    <h3>${escapeHtml(symbol)}</h3>
-                    <button class="remove-btn" data-remove="${escapeHtml(symbol)}">Remove</button>
-                </div>
-                <button class="ai-button" style="margin-top:0;margin-bottom:12px"
-                    data-ai="${escapeHtml(symbol)}" type="button">✦ AI insights</button>
-                <p class="stock-subtitle">Quote unavailable</p>
-                <div class="error-message">${escapeHtml(message)}</div>
-            </article>`;
-        }
-
-        async function loadQuote(symbol) {
-            try {
-                const data = await api(`/api/stock/${encodeURIComponent(symbol)}`);
-                if (data.error || data.message) throw new Error(data.error || data.message);
-                if (data.price == null) throw new Error("No quote is available for this symbol.");
-
-                checkAlerts(data);
-                previousPrices[symbol] = Number(data.price);
-
-                const card = [...$("watchlistGrid").children].find(
-                    element => element.querySelector("h3")?.textContent === symbol
-                );
-
-                if (card) {
-                    const wrapper = document.createElement("div");
-                    wrapper.innerHTML = renderQuoteCard(data);
-                    card.replaceWith(wrapper.firstElementChild);
+        function checkAlerts(symbol, price) {
+            alerts.forEach(alert => {
+                if (alert.symbol !== symbol || alert.triggered) return;
+                const hit = alert.direction === "above" ? price >= alert.price : price <= alert.price;
+                if (hit) {
+                    alert.triggered = true;
+                    alert.triggeredAt = new Date().toLocaleTimeString();
+                    alert.message = `${symbol} reached ${money(price)}`;
+                    alert("never");
                 }
-
-                $("lastUpdate").textContent = new Date().toLocaleTimeString([], {
-                    hour: "2-digit", minute: "2-digit"
+            });
+            saveAlerts();
+        }
+        function renderAlerts() {
+            $("alertCount").textContent = alerts.filter(a => !a.triggered).length;
+            $("alertList").innerHTML = alerts.length ? alerts.map((a, i) => `
+    <div class="alert-item"><div><strong>${escapeHtml(a.symbol)}</strong> ${a.direction === "above" ? "≥" : "≤"} ${money(a.price)}
+    <div class="muted">${a.triggered ? "Triggered " + escapeHtml(a.triggeredAt || "") : "Waiting for a successful quote"}</div></div>
+    <button class="danger" data-remove-alert="${i}">Remove</button></div>`).join("") : '<div class="message">No alerts yet.</div>';
+        }
+        function renderMetrics(data) {
+            $("metricsList").innerHTML = `
+    <div class="history-item"><span>Last quote</span><strong>${money(data.price)}</strong></div>
+    <div class="history-item"><span>Daily change</span><strong class="${data.change >= 0 ? "positive" : "negative"}">${Number(data.change).toFixed(2)} (${escapeHtml(data.change_percent)})</strong></div>
+    <div class="history-item"><span>Day high</span><strong>${money(data.high)}</strong></div>
+    <div class="history-item"><span>Day low</span><strong>${money(data.low)}</strong></div>
+    <div class="history-item"><span>Quote timestamp</span><span>${escapeHtml(data.updated_at || "Provider timestamp unavailable")}</span></div>`;
+        }
+        async function loadStock(symbol, force = false) {
+            try {
+                const data = await api(`/api/stock/${encodeURIComponent(symbol)}${force ? "?refresh=1" : ""}`);
+                latestQuotes[symbol] = data;
+                checkAlerts(symbol, Number(data.price));
+                return { symbol, data };
+            } catch (error) {
+                return { symbol, error: error.message };
+            }
+        }
+        async function loadWatchlist(force = false) {
+            $("quoteStatus").textContent = "Loading quotes…";
+            try {
+                const result = await api("/api/watchlist");
+                symbols = result.symbols || [];
+                populateSelectors();
+                $("watchlistGrid").innerHTML = "";
+                let successes = 0;
+                for (const symbol of symbols) {
+                    const result = await loadStock(symbol, force);
+                    const card = document.createElement("article");
+                    card.className = "stock-card";
+                    if (result.data) {
+                        successes++;
+                        const d = result.data;
+                        card.innerHTML = `<div class="row" style="justify-content:space-between"><div class="symbol">${escapeHtml(symbol)}</div><span class="pill">Quote loaded</span></div>
+          <div class="price">${money(d.price)}</div>
+          <div class="${d.change >= 0 ? "positive" : "negative"}">${Number(d.change).toFixed(2)} (${escapeHtml(d.change_percent)})</div>
+          <p class="muted">High ${money(d.high)} · Low ${money(d.low)}</p>
+          <p class="muted">Updated ${escapeHtml(d.updated_at || "")}</p>
+          <div class="stock-actions"><button data-insight="${escapeHtml(symbol)}">✦ AI report</button><button class="secondary" data-history="${escapeHtml(symbol)}">History</button><button class="danger" data-remove="${escapeHtml(symbol)}">Remove</button></div>`;
+                    } else {
+                        card.innerHTML = `<div class="row" style="justify-content:space-between"><div class="symbol">${escapeHtml(symbol)}</div><span class="pill">Unavailable</span></div>
+          <p class="quote-error">${escapeHtml(result.error)}</p>
+          <p class="muted">Try again after the provider limit resets.</p>
+          <div class="stock-actions"><button data-insight="${escapeHtml(symbol)}">✦ AI report</button><button class="secondary" data-history="${escapeHtml(symbol)}">History</button><button class="danger" data-remove="${escapeHtml(symbol)}">Remove</button></div>`;
+                    }
+                    $("watchlistGrid").appendChild(card);
+                    // Avoid sending requests in a burst to Alpha Vantage.
+                    await new Promise(resolve => setTimeout(resolve, 12000));
+                }
+                $("quoteStatus").textContent = `${successes} quote(s) loaded`;
+                const summary = await api("/api/summary");
+                $("snapshotCount").textContent = summary.saved_snapshots ?? 0;
+                if (symbols.length) await loadHistory($("historySymbol").value || symbols[0]);
+                const first = symbols.find(s => latestQuotes[s]);
+                if (first) renderMetrics(latestQuotes[first]);
+            } catch (error) {
+                $("quoteStatus").textContent = error.message;
+            }
+        }
+        async function loadHistory(symbol) {
+            if (!symbol) return;
+            try {
+                const rows = await api(`/api/history/${encodeURIComponent(symbol)}`);
+                $("historyMessage").textContent = rows.length ? `${rows.length} saved snapshot(s) for ${symbol}.` : `No saved history for ${symbol} yet. A successful quote will save a snapshot.`;
+                if (chart) chart.destroy();
+                chart = new Chart($("priceChart"), {
+                    type: "line",
+                    data: { labels: rows.map(r => r.time), datasets: [{ label: `${symbol} saved price`, data: rows.map(r => r.price), borderColor: "#887aff", backgroundColor: "rgba(136,122,255,.15)", fill: true, tension: .25, pointRadius: 2 }] },
+                    options: { responsive: true, plugins: { legend: { labels: { color: "#dce5f7" } } }, scales: { x: { ticks: { color: "#9db0d0", maxTicksLimit: 6 } }, y: { ticks: { color: "#9db0d0" } } } }
                 });
-                return true;
-            } catch (error) {
-                const card = [...$("watchlistGrid").children].find(
-                    element => element.querySelector("h3")?.textContent === symbol
-                );
-
-                if (card) {
-                    const wrapper = document.createElement("div");
-                    wrapper.innerHTML = renderErrorCard(symbol, error.message);
-                    card.replaceWith(wrapper.firstElementChild);
-                }
-                return false;
-            }
+            } catch (error) { $("historyMessage").textContent = error.message; }
         }
-
-        async function loadWatchlist() {
+        async function generateInsights(symbol) {
+            $("aiSymbol").value = symbol;
+            $("insightOutput").textContent = "Generating educational report…";
+            $("aiStatus").textContent = "Contacting Gemini";
             try {
-                const data = await api("/api/watchlist");
-                watchlist = data.symbols || [];
-                $("watchCount").textContent = watchlist.length;
-                updateSelects();
-
-                $("watchlistGrid").innerHTML = watchlist.length
-                    ? watchlist.map(renderLoadingCard).join("")
-                    : '<p class="muted">Your watchlist is empty. Add a stock above.</p>';
-
-                if (!watchlist.length) {
-                    $("quoteStatus").textContent = "● No stocks";
-                    drawChart([]);
-                    $("aiStatus").textContent = "Add a stock to your watchlist to begin.";
-                    return;
-                }
-
-                let successful = 0;
-                for (const symbol of watchlist) {
-                    if (await loadQuote(symbol)) successful++;
-                    await new Promise(resolve => setTimeout(resolve, 1200));
-                }
-
-                $("quoteStatus").textContent = `● ${successful} quote(s) loaded`;
-                await loadHistory();
+                const result = await api("/api/ai-insights", { method: "POST", body: JSON.stringify({ symbol }) });
+                $("insightOutput").textContent = result.insights;
+                $("aiStatus").textContent = `${result.data_points} saved snapshot(s)`;
             } catch (error) {
-                toast(error.message, "error");
-                $("quoteStatus").textContent = "● Could not load watchlist";
+                $("insightOutput").textContent = error.message;
+                $("aiStatus").textContent = "Could not generate report";
             }
         }
+        async function loadConfig() {
+            try {
+                const c = await api("/api/config");
+                $("configStatus").textContent = `Alpha Vantage: ${c.alpha_vantage_configured ? "configured" : "missing"} · Gemini: ${c.gemini_configured ? "configured" : "missing"}. Keys remain on the server.`;
+            } catch (error) { $("configStatus").textContent = error.message; }
+        }
 
-        $("addStockForm").addEventListener("submit", async event => {
+        $("addForm").addEventListener("submit", async event => {
             event.preventDefault();
-            const symbol = $("stockSymbol").value.trim().toUpperCase();
-
-            if (!/^[A-Z0-9.-]{1,15}$/.test(symbol)) {
-                toast("Enter a valid ticker symbol.", "error");
-                return;
-            }
-
+            const symbol = $("symbolInput").value.trim().toUpperCase();
             try {
-                await api("/api/watchlist", {
-                    method: "POST",
-                    body: JSON.stringify({ symbol })
-                });
-                $("stockSymbol").value = "";
-                toast(`${symbol} added to your watchlist.`, "success");
+                await api("/api/watchlist", { method: "POST", body: JSON.stringify({ symbol }) });
+                $("addMessage").textContent = `${symbol} added to watchlist.`;
+                $("symbolInput").value = "";
                 await loadWatchlist();
-            } catch (error) {
-                toast(error.message, "error");
-            }
+            } catch (error) { $("addMessage").textContent = error.message; }
         });
-
         $("watchlistGrid").addEventListener("click", async event => {
-            const aiButton = event.target.closest("[data-ai]");
-            if (aiButton) {
-                generateAIInsights(aiButton.dataset.ai);
-                return;
-            }
-
-            const button = event.target.closest("[data-remove]");
+            const button = event.target.closest("button");
             if (!button) return;
-
-            const symbol = button.dataset.remove;
-            try {
-                await api(`/api/watchlist/${encodeURIComponent(symbol)}`, { method: "DELETE" });
-                delete previousPrices[symbol];
-                alerts = alerts.filter(alert => alert.symbol !== symbol);
-                renderAlerts();
-                toast(`${symbol} removed from your watchlist.`, "success");
-                await loadWatchlist();
-            } catch (error) {
-                toast(error.message, "error");
+            if (button.dataset.insight) {
+                $("aiSection").scrollIntoView({ behavior: "smooth" });
+                await generateInsights(button.dataset.insight);
+            }
+            if (button.dataset.history) {
+                $("historySymbol").value = button.dataset.history;
+                $("historySection").scrollIntoView({ behavior: "smooth" });
+                await loadHistory(button.dataset.history);
+            }
+            if (button.dataset.remove) {
+                try {
+                    await api(`/api/watchlist/${encodeURIComponent(button.dataset.remove)}`, { method: "DELETE" });
+                    await loadWatchlist();
+                } catch (error) { $("addMessage").textContent = error.message; }
             }
         });
-
-        $("refreshButton").addEventListener("click", loadWatchlist);
-
-        async function loadHistory() {
-            const symbol = $("historySymbol").value;
-            if (!symbol) {
-                drawChart([]);
-                return;
-            }
-
-            try {
-                const data = await api(`/api/history/${encodeURIComponent(symbol)}`);
-                const records = data.history || data.records || data || [];
-                drawChart(Array.isArray(records) ? records : []);
-            } catch (error) {
-                $("historyMessage").textContent = error.message;
-                drawChart([]);
-            }
-        }
-
-        $("historySymbol").addEventListener("change", loadHistory);
-
-        function drawChart(records) {
-            const canvas = $("priceChart");
-            const container = canvas.parentElement;
-            const rect = container.getBoundingClientRect();
-            const ratio = window.devicePixelRatio || 1;
-
-            canvas.width = Math.max(1, rect.width * ratio);
-            canvas.height = Math.max(1, rect.height * ratio);
-
-            const ctx = canvas.getContext("2d");
-            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-
-            const width = rect.width;
-            const height = rect.height;
-            ctx.clearRect(0, 0, width, height);
-
-            const valid = records
-                .map(record => ({ price: Number(record.price), time: record.time || "" }))
-                .filter(record => Number.isFinite(record.price));
-
-            if (!valid.length) {
-                ctx.fillStyle = "#91a7c6";
-                ctx.font = "14px Segoe UI";
-                ctx.textAlign = "center";
-                ctx.fillText("No saved price history yet", width / 2, height / 2);
-                ["latestPrice", "highestPrice", "lowestPrice"].forEach(id => $(id).textContent = "—");
-                $("historyMessage").textContent = "Prices are saved when the API returns successful quotes.";
-                return;
-            }
-
-            const prices = valid.map(record => record.price);
-            const min = Math.min(...prices);
-            const max = Math.max(...prices);
-            const spread = max - min || Math.max(max * 0.01, 1);
-            const left = 58, right = 18, top = 22, bottom = 36;
-            const plotWidth = Math.max(1, width - left - right);
-            const plotHeight = Math.max(1, height - top - bottom);
-
-            ctx.font = "11px Segoe UI";
-            ctx.textAlign = "right";
-            ctx.lineWidth = 1;
-
-            for (let i = 0; i <= 4; i++) {
-                const y = top + plotHeight * i / 4;
-                const value = max + (min - max) * i / 4;
-                ctx.strokeStyle = "#2b3c59";
-                ctx.setLineDash([4, 5]);
-                ctx.beginPath();
-                ctx.moveTo(left, y);
-                ctx.lineTo(width - right, y);
-                ctx.stroke();
-
-                ctx.setLineDash([]);
-                ctx.fillStyle = "#91a7c6";
-                ctx.fillText("$" + value.toFixed(2), left - 8, y + 4);
-            }
-
-            const points = valid.map((record, i) => ({
-                x: left + (valid.length === 1 ? plotWidth / 2 : i * plotWidth / (valid.length - 1)),
-                y: top + (max - record.price) / spread * plotHeight
-            }));
-
-            const gradient = ctx.createLinearGradient(0, top, 0, height - bottom);
-            gradient.addColorStop(0, "rgba(112,133,255,0.32)");
-            gradient.addColorStop(1, "rgba(112,133,255,0.01)");
-
-            ctx.beginPath();
-            points.forEach((point, i) => {
-                if (i === 0) ctx.moveTo(point.x, point.y);
-                else ctx.lineTo(point.x, point.y);
-            });
-
-            if (points.length > 1) {
-                ctx.lineTo(points[points.length - 1].x, height - bottom);
-                ctx.lineTo(points[0].x, height - bottom);
-                ctx.closePath();
-                ctx.fillStyle = gradient;
-                ctx.fill();
-            }
-
-            ctx.beginPath();
-            points.forEach((point, i) => {
-                if (i === 0) ctx.moveTo(point.x, point.y);
-                else ctx.lineTo(point.x, point.y);
-            });
-            ctx.strokeStyle = "#8295ff";
-            ctx.lineWidth = 2.5;
-            ctx.lineJoin = "round";
-            ctx.lineCap = "round";
-            ctx.stroke();
-
-            const last = points[points.length - 1];
-            ctx.beginPath();
-            ctx.arc(last.x, last.y, 4, 0, Math.PI * 2);
-            ctx.fillStyle = "#a8b5ff";
-            ctx.fill();
-
-            $("latestPrice").textContent = money(prices[prices.length - 1]);
-            $("highestPrice").textContent = money(max);
-            $("lowestPrice").textContent = money(min);
-            $("historyMessage").textContent =
-                `${valid.length} saved record(s) for ${$("historySymbol").value}. These are saved quote snapshots, not necessarily intraday trading data.`;
-        }
-
+        $("historySymbol").addEventListener("change", e => loadHistory(e.target.value));
+        $("aiButton").addEventListener("click", () => generateInsights($("aiSymbol").value));
+        $("refreshBtn").addEventListener("click", () => loadWatchlist(true));
         $("alertForm").addEventListener("submit", event => {
             event.preventDefault();
-
-            const symbol = $("alertSymbol").value;
-            const direction = $("alertDirection").value;
-            const threshold = Number($("alertThreshold").value);
-
-            if (!symbol || !Number.isFinite(threshold) || threshold <= 0) {
-                toast("Choose a stock and enter a threshold greater than zero.", "error");
-                return;
-            }
-
-            alerts.push({
-                id: Date.now(),
-                symbol,
-                direction,
-                threshold,
-                triggered: false
-            });
-
-            $("alertThreshold").value = "";
-            $("alertFormMessage").textContent = `Alert created for ${symbol}.`;
-            renderAlerts();
-            toast(`Alert created for ${symbol}.`, "success");
+            alerts.push({ symbol: $("alertSymbol").value, direction: $("alertDirection").value, price: Number($("alertPrice").value), triggered: false });
+            saveAlerts();
+            $("alertMessage").textContent = "Alert saved. It will be checked after a successful quote loads.";
+            $("alertPrice").value = "";
         });
-
-        function renderAlerts() {
-            $("alertCount").textContent = alerts.length;
-            $("alertList").innerHTML = alerts.length ? alerts.map(alert => `
-            <div class="alert-item">
-                <div>
-                    <strong>${escapeHtml(alert.symbol)} · ${alert.direction === "up" ? "▲ Rise" : "▼ Fall"}</strong>
-                    <p class="muted" style="margin:5px 0 0">
-                        Daily change ${alert.direction === "up" ? "≥" : "≤"}
-                        ${alert.threshold.toFixed(2)}% · ${alert.triggered ? "Triggered" : "Active"}
-                    </p>
-                </div>
-                <button class="remove-btn" data-alert-remove="${alert.id}">Remove</button>
-            </div>
-        `).join("") : '<p class="muted">No alerts created yet.</p>';
-        }
-
         $("alertList").addEventListener("click", event => {
-            const button = event.target.closest("[data-alert-remove]");
-            if (!button) return;
-            alerts = alerts.filter(alert => alert.id !== Number(button.dataset.alertRemove));
-            renderAlerts();
+            const button = event.target.closest("[data-remove-alert]");
+            if (button) { alerts.splice(Number(button.dataset.removeAlert), 1); saveAlerts(); }
         });
-
-        function checkAlerts(data) {
-            const percent = Number.parseFloat(String(data.change_percent).replace("%", ""));
-            if (!Number.isFinite(percent)) return;
-
-            alerts.forEach(alert => {
-                if (alert.symbol !== data.symbol || alert.triggered) return;
-
-                const triggered = alert.direction === "up"
-                    ? percent >= alert.threshold
-                    : percent <= -alert.threshold;
-
-                if (triggered) {
-                    alert.triggered = true;
-                    toast(`${alert.symbol} met your ${alert.direction} alert: ${percent.toFixed(2)}% daily change.`, "success");
-                    renderAlerts();
-                }
-            });
-        }
-
-        async function generateAIInsights(symbol) {
-            const chosen = symbol || $("aiSymbol").value;
-
-            if (!chosen) {
-                $("aiStatus").textContent = "Add a stock to your watchlist first.";
-                $("aiStatus").classList.add("error");
-                return;
-            }
-
-            $("aiSymbol").value = chosen;
-            $("aiOutput").textContent = "";
-            $("aiStatus").textContent = `Asking Gemini to analyze ${chosen}…`;
-            $("aiStatus").classList.remove("error");
-            $("aiAnalyzeButton").disabled = true;
-            document.querySelectorAll("[data-ai]").forEach(button => button.disabled = true);
-
-            try {
-                const result = await api("/api/ai-insights", {
-                    method: "POST",
-                    body: JSON.stringify({ symbol: chosen })
-                });
-
-                $("aiOutput").textContent = result.insights || "Gemini returned an empty report.";
-                const count = result.data_points ?? "unknown";
-                $("aiStatus").textContent =
-                    `Analysis complete for ${chosen}. Based on ${count} saved data point(s). Educational use only — not financial advice.`;
-                $("aiInsights").scrollIntoView({ behavior: "smooth", block: "start" });
-            } catch (error) {
-                $("aiStatus").textContent = `Could not generate insights: ${error.message}`;
-                $("aiStatus").classList.add("error");
-            } finally {
-                $("aiAnalyzeButton").disabled = false;
-                document.querySelectorAll("[data-ai]").forEach(button => button.disabled = false);
-            }
-        }
-
-        $("aiAnalyzeButton").addEventListener("click", () => generateAIInsights());
-
-        document.querySelectorAll(".nav").forEach(button => {
-            button.addEventListener("click", () => {
-                document.querySelectorAll(".nav").forEach(item => item.classList.remove("active"));
-                button.classList.add("active");
-                $(button.dataset.target).scrollIntoView({ behavior: "smooth", block: "start" });
-            });
+        $("clearAlerts").addEventListener("click", () => { alerts = []; saveAlerts(); });
+        $("startScheduler").addEventListener("click", () => {
+            if (scheduler) clearInterval(scheduler);
+            const seconds = Number($("refreshInterval").value);
+            scheduler = setInterval(() => loadWatchlist(true), seconds * 1000);
+            $("schedulerState").textContent = `Running · ${seconds}s`;
+            $("startScheduler").disabled = true;
+            $("stopScheduler").disabled = false;
         });
-
-        let resizeTimer;
-        window.addEventListener("resize", () => {
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(loadHistory, 150);
+        $("stopScheduler").addEventListener("click", () => {
+            if (scheduler) clearInterval(scheduler);
+            scheduler = null;
+            $("schedulerState").textContent = "Stopped";
+            $("startScheduler").disabled = false;
+            $("stopScheduler").disabled = true;
         });
-
+        document.querySelectorAll("nav button").forEach(button => button.addEventListener("click", () => {
+            document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+            button.classList.add("active");
+            const target = $(button.dataset.target);
+            if (target) target.scrollIntoView({ behavior: "smooth" });
+        }));
+        window.addEventListener("beforeunload", () => { if (scheduler) clearInterval(scheduler); });
         renderAlerts();
+        loadConfig();
         loadWatchlist();
     </script>
 </body>
