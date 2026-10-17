@@ -3,6 +3,7 @@ import os
 import csv
 import time
 from datetime import datetime
+from dotenv import load_dotenv
 
 import requests
 import matplotlib.pyplot as plt
@@ -11,6 +12,7 @@ from rich.table import Table
 from rich import box
 
 API_URL = "https://www.alphavantage.co/query"
+load_dotenv()
 API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
 CSV_FILE = "stock_history.csv"
 

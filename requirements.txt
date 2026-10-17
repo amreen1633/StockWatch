@@ -4,3 +4,6 @@ requests
 python-dotenv
 google-genai
 gunicorn
+pandas
+matplotlib
+rich

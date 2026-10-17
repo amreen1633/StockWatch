@@ -10,7 +10,6 @@ from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 from google import genai
 
-# Load API keys from .env
 load_dotenv()
 
 app = Flask(__name__)
@@ -20,50 +19,64 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
 DATA_FILE = os.path.join(app.root_path, "stock_history.csv")
 
-CACHE_SECONDS = 60
+# Longer cache reduces requests to Alpha Vantage's free API.
+CACHE_SECONDS = 300
 cache = {}
 cache_lock = Lock()
+file_lock = Lock()
 
 watchlist = ["AAPL", "MSFT", "GOOGL"]
 
-# Initialize Gemini only when a key is configured
 gemini_client = genai.Client(
     api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 GEMINI_MODEL = "gemini-3.8-flash"
 
+ALPHA_URL = "https://www.alphavantage.co/query"
+
+
+def valid_symbol(symbol):
+    symbol = str(symbol).strip().upper()
+    return (
+        bool(symbol)
+        and len(symbol) <= 15
+        and symbol.replace(".", "").replace("-", "").isalnum()
+    )
+
 
 def save_history(symbol, price, change, percent, high, low):
-    file_exists = os.path.exists(DATA_FILE)
+    with file_lock:
+        exists = os.path.exists(DATA_FILE)
 
-    with open(DATA_FILE, "a", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(
-            file,
-            fieldnames=[
-                "time", "symbol", "price",
-                "change", "percent", "high", "low"
-            ]
-        )
+        with open(DATA_FILE, "a", newline="", encoding="utf-8") as file:
+            writer = csv.DictWriter(
+                file,
+                fieldnames=[
+                    "time", "symbol", "price",
+                    "change", "percent", "high", "low"
+                ]
+            )
 
-        if not file_exists or os.path.getsize(DATA_FILE) == 0:
-            writer.writeheader()
+            if not exists or os.path.getsize(DATA_FILE) == 0:
+                writer.writeheader()
 
-        writer.writerow({
-            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "symbol": symbol,
-            "price": price,
-            "change": change,
-            "percent": percent,
-            "high": high,
-            "low": low
-        })
+            writer.writerow({
+                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "symbol": symbol,
+                "price": price,
+                "change": change,
+                "percent": percent,
+                "high": high,
+                "low": low
+            })
 
 
 def get_stock(symbol):
-    symbol = symbol.strip().upper()
+    symbol = str(symbol).strip().upper()
 
-    if not symbol or not symbol.replace(".", "").replace("-", "").isalnum():
+    if not valid_symbol(symbol):
         return None, "Please enter a valid stock ticker."
 
+    # Return the last successful quote while it is fresh.
     with cache_lock:
         cached = cache.get(symbol)
         if cached and time.time() - cached["saved_at"] < CACHE_SECONDS:
@@ -74,7 +87,7 @@ def get_stock(symbol):
 
     try:
         response = requests.get(
-            "https://www.alphavantage.co/query",
+            ALPHA_URL,
             params={
                 "function": "GLOBAL_QUOTE",
                 "symbol": symbol,
@@ -86,14 +99,23 @@ def get_stock(symbol):
         result = response.json()
 
         if "Note" in result or "Information" in result:
+            with cache_lock:
+                cached = cache.get(symbol)
+            if cached:
+                return cached["data"], (
+                    "Showing the last saved quote; Alpha Vantage "
+                    "has temporarily limited requests."
+                )
             return None, (
-                "Alpha Vantage request limit reached. "
-                "Please try again later. Saved history is still available."
+                "Alpha Vantage request limit reached. Try again later."
             )
 
         quote = result.get("Global Quote", {})
         if not quote:
-            return None, "No quote returned. Check the ticker or API availability."
+            return None, (
+                "No quote returned. Check the ticker, API access, "
+                "or provider response."
+            )
 
         price = float(quote["05. price"])
         change = float(quote["09. change"])
@@ -112,10 +134,7 @@ def get_stock(symbol):
         }
 
         with cache_lock:
-            cache[symbol] = {
-                "saved_at": time.time(),
-                "data": data
-            }
+            cache[symbol] = {"saved_at": time.time(), "data": data}
 
         save_history(symbol, price, change, percent, high, low)
         return data, None
@@ -139,7 +158,7 @@ def manage_watchlist():
     body = request.get_json(silent=True) or {}
     symbol = str(body.get("symbol", "")).strip().upper()
 
-    if not symbol or not symbol.replace(".", "").replace("-", "").isalnum():
+    if not valid_symbol(symbol):
         return jsonify({"error": "Enter a valid stock ticker."}), 400
 
     if symbol not in watchlist:
@@ -162,11 +181,14 @@ def remove_stock(symbol):
 def stock_quote(symbol):
     data, error = get_stock(symbol)
 
-    if error:
-        status = 429 if "limit" in error.lower() else 400
-        return jsonify({"error": error, "symbol": symbol.upper()}), status
+    if data:
+        result = dict(data)
+        if error:
+            result["notice"] = error
+        return jsonify(result)
 
-    return jsonify(data)
+    status = 429 if error and "limit" in error.lower() else 400
+    return jsonify({"error": error, "symbol": symbol.upper()}), status
 
 
 @app.route("/api/history/<symbol>")
@@ -175,18 +197,17 @@ def stock_history(symbol):
     records = []
 
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", newline="", encoding="utf-8") as file:
-            reader = csv.DictReader(file)
-
-            for row in reader:
-                if row.get("symbol", "").upper() == symbol:
-                    try:
-                        records.append({
-                            "time": row["time"],
-                            "price": float(row["price"])
-                        })
-                    except (ValueError, KeyError):
-                        continue
+        with file_lock:
+            with open(DATA_FILE, "r", newline="", encoding="utf-8") as file:
+                for row in csv.DictReader(file):
+                    if row.get("symbol", "").upper() == symbol:
+                        try:
+                            records.append({
+                                "time": row["time"],
+                                "price": float(row["price"])
+                            })
+                        except (ValueError, KeyError):
+                            continue
 
     return jsonify(records[-100:])
 
@@ -195,76 +216,68 @@ def stock_history(symbol):
 def ai_insights():
     if gemini_client is None:
         return jsonify({
-            "error": "Gemini API key is missing. Add GEMINI_API_KEY to .env."
+            "error": "Gemini API key is missing. Configure GEMINI_API_KEY."
         }), 503
 
     body = request.get_json(silent=True) or {}
     symbol = str(body.get("symbol", "")).strip().upper()
 
-    if not symbol or not symbol.replace(".", "").replace("-", "").isalnum():
+    if not valid_symbol(symbol):
         return jsonify({"error": "Enter a valid stock ticker."}), 400
 
-    # Read saved records; do not invent missing market prices.
     records = []
 
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", newline="", encoding="utf-8") as file:
-            reader = csv.DictReader(file)
+        with file_lock:
+            with open(DATA_FILE, "r", newline="", encoding="utf-8") as file:
+                for row in csv.DictReader(file):
+                    if row.get("symbol", "").upper() == symbol:
+                        try:
+                            records.append({
+                                "time": row.get("time", ""),
+                                "price": float(row["price"]),
+                                "change": float(row.get("change", 0)),
+                                "percent": row.get("percent", ""),
+                                "high": float(row.get("high", 0)),
+                                "low": float(row.get("low", 0))
+                            })
+                        except (ValueError, TypeError):
+                            continue
 
-            for row in reader:
-                if row.get("symbol", "").upper() == symbol:
-                    try:
-                        records.append({
-                            "time": row.get("time", ""),
-                            "price": float(row["price"]),
-                            "change": float(row.get("change", 0)),
-                            "percent": row.get("percent", ""),
-                            "high": float(row.get("high", 0)),
-                            "low": float(row.get("low", 0))
-                        })
-                    except (ValueError, TypeError):
-                        continue
-
-    # Use current in-memory cached quote if available.
-    latest_quote = None
     with cache_lock:
         cached = cache.get(symbol)
-        if cached:
-            latest_quote = cached["data"]
+        latest_quote = cached["data"] if cached else None
 
     if not records and not latest_quote:
         return jsonify({
             "error": (
                 f"No saved price data is available for {symbol} yet. "
-                "AI insights need a saved quote first."
+                "Try again after a quote has been successfully retrieved."
             )
         }), 404
 
     prompt = f"""
-You are the AI insights assistant inside a student stock-monitoring
-project called StockWatch.
+You are StockWatch's educational stock-data assistant.
 
-Analyze the supplied data for ticker {symbol}.
+Analyze only the supplied data for ticker {symbol}.
 
-Saved price records (oldest to newest):
+Saved snapshots, oldest to newest:
 {records[-20:]}
 
 Latest cached quote, if available:
 {latest_quote}
 
-Write a concise, beginner-friendly report with:
+Write a concise report covering:
 1. What the supplied data shows.
-2. Whether the saved prices appear to rise, fall, or remain mixed.
-3. Important limitations or missing information.
-4. Two things a person could investigate further.
+2. Whether saved prices rise, fall, or look mixed.
+3. Missing information and limitations.
+4. Two useful things to investigate further.
 
-Rules:
-- Do not invent prices, company news, or financial facts.
-- State clearly when the dataset is too small to show a trend.
-- These records may be sparse snapshots, not continuous historical prices.
-- Do not claim that you have fetched live market data.
-- Do not give personalized investment advice or promise returns.
-- This is educational information, not financial advice.
+Never invent prices, news, or financial facts. Say when there are
+too few observations to identify a trend. These may be sparse snapshots,
+not continuous historical prices. Do not claim to have fetched live data.
+Do not provide personalized investment advice or promise returns.
+This is educational information, not financial advice.
 """
 
     try:
@@ -274,29 +287,27 @@ Rules:
         )
 
         insight_text = response.text
-
         if not insight_text:
-            return jsonify({
-                "error": "Gemini returned an empty response. Please try again."
-            }), 502
+            return jsonify({"error": "Gemini returned an empty response."}), 502
 
         return jsonify({
             "symbol": symbol,
             "insights": insight_text,
             "data_points": len(records),
-            "source": "StockWatch saved snapshots and available cached quote"
+            "source": "StockWatch saved snapshots and cached quote"
         })
 
     except Exception as error:
-        # Avoid returning API keys or full internal error details to browsers.
         print("Gemini request failed:", type(error).__name__, str(error))
         return jsonify({
             "error": (
-                "Gemini could not generate insights. Check your API key, "
-                "model access, internet connection, and API quota."
+                "Gemini could not generate insights. Check the model name, "
+                "API key, access, internet connection, and quota."
             )
         }), 502
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Render supplies PORT. Disable debug mode in production.
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=False)
