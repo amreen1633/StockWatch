@@ -473,6 +473,7 @@ State that the report is educational, not financial advice.
         response = gemini_client.models.generate_content(
             model=GEMINI_MODEL,
             contents=prompt,
+            config={"http_options": {"timeout": 60000}},
         )
 
         insight_text = response.text
