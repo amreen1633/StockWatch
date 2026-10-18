@@ -5,8 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StockWatch | Market Watchdog</title>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+
     <style>
         :root {
             --bg: #080d1b;
@@ -18,24 +21,24 @@
             --purple: #8075ff;
             --green: #37d99a;
             --red: #ff7185;
-            --amber: #ffc66d
+            --amber: #ffc66d;
         }
 
         * {
-            box-sizing: border-box
+            box-sizing: border-box;
         }
 
         body {
             margin: 0;
             background: var(--bg);
             color: var(--text);
-            font-family: Inter, "Segoe UI", Arial, sans-serif
+            font-family: Inter, "Segoe UI", Arial, sans-serif;
         }
 
         button,
         input,
         select {
-            font: inherit
+            font: inherit;
         }
 
         button {
@@ -45,22 +48,22 @@
             padding: 11px 15px;
             background: var(--purple);
             color: white;
-            font-weight: 700
+            font-weight: 700;
         }
 
         button.secondary {
             background: #233452;
-            border: 1px solid var(--border)
+            border: 1px solid var(--border);
         }
 
         button.danger {
             background: #482332;
-            color: #ffb4c0
+            color: #ffb4c0;
         }
 
         button:disabled {
             opacity: .5;
-            cursor: not-allowed
+            cursor: not-allowed;
         }
 
         input,
@@ -70,13 +73,13 @@
             border-radius: 10px;
             padding: 12px;
             color: var(--text);
-            min-width: 0
+            min-width: 0;
         }
 
         .shell {
             display: grid;
             grid-template-columns: 235px minmax(0, 1fr);
-            min-height: 100vh
+            min-height: 100vh;
         }
 
         .sidebar {
@@ -85,18 +88,18 @@
             padding: 24px 16px;
             position: sticky;
             top: 0;
-            height: 100vh
+            height: 100vh;
         }
 
         .brand {
             font-size: 25px;
             font-weight: 850;
-            margin-bottom: 6px
+            margin-bottom: 6px;
         }
 
         .tagline,
         .muted {
-            color: var(--muted)
+            color: var(--muted);
         }
 
         .eyebrow {
@@ -104,26 +107,26 @@
             color: #8d91ff;
             font-weight: 800;
             letter-spacing: 2px;
-            text-transform: uppercase
+            text-transform: uppercase;
         }
 
         nav {
             display: grid;
             gap: 8px;
-            margin-top: 35px
+            margin-top: 35px;
         }
 
         nav button {
             text-align: left;
             background: transparent;
             color: var(--muted);
-            font-weight: 600
+            font-weight: 600;
         }
 
         nav button.active,
         nav button:hover {
             background: #1b2b48;
-            color: white
+            color: white;
         }
 
         .side-note {
@@ -133,12 +136,12 @@
             border: 1px solid var(--border);
             border-radius: 12px;
             font-size: 13px;
-            line-height: 1.6
+            line-height: 1.6;
         }
 
         main {
             padding: 30px;
-            min-width: 0
+            min-width: 0;
         }
 
         .topbar {
@@ -146,19 +149,19 @@
             justify-content: space-between;
             align-items: center;
             gap: 15px;
-            flex-wrap: wrap
+            flex-wrap: wrap;
         }
 
         .title {
             font-size: clamp(27px, 4vw, 40px);
-            margin: 8px 0
+            margin: 8px 0;
         }
 
         .row {
             display: flex;
             align-items: center;
             gap: 10px;
-            flex-wrap: wrap
+            flex-wrap: wrap;
         }
 
         .status {
@@ -166,23 +169,23 @@
             border-radius: 25px;
             padding: 10px 13px;
             color: var(--muted);
-            font-size: 13px
+            font-size: 13px;
         }
 
         .section {
             margin-top: 28px;
-            scroll-margin-top: 20px
+            scroll-margin-top: 20px;
         }
 
         .section h2 {
             font-size: 22px;
-            margin: 0 0 8px
+            margin: 0 0 8px;
         }
 
         .grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 16px
+            gap: 16px;
         }
 
         .panel,
@@ -192,77 +195,77 @@
             border: 1px solid var(--border);
             border-radius: 17px;
             padding: 20px;
-            min-width: 0
+            min-width: 0;
         }
 
         .metric .label {
-            color: var(--muted)
+            color: var(--muted);
         }
 
         .metric .value {
             font-size: 29px;
             font-weight: 800;
-            margin: 12px 0 4px
+            margin: 12px 0 4px;
         }
 
         .formrow {
             display: flex;
             gap: 10px;
-            flex-wrap: wrap
+            flex-wrap: wrap;
         }
 
         .formrow input {
-            flex: 1
+            flex: 1;
         }
 
         .stocks {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 14px;
-            margin-top: 16px
+            margin-top: 16px;
         }
 
         .stock-card .symbol {
             font-size: 20px;
-            font-weight: 800
+            font-weight: 800;
         }
 
         .price {
             font-size: 27px;
             font-weight: 850;
-            margin: 14px 0
+            margin: 14px 0;
         }
 
         .positive {
-            color: var(--green)
+            color: var(--green);
         }
 
         .negative {
-            color: var(--red)
+            color: var(--red);
         }
 
         .quote-error {
             color: var(--amber);
             font-size: 13px;
-            line-height: 1.5
+            line-height: 1.5;
         }
 
         .stock-actions {
             display: flex;
             gap: 7px;
             flex-wrap: wrap;
-            margin-top: 14px
+            margin-top: 14px;
         }
 
         .stock-actions button {
             padding: 9px 10px;
-            font-size: 12px
+            font-size: 12px;
         }
 
         .two-col {
             display: grid;
             grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr);
-            gap: 16px
+            gap: 16px;
         }
 
         .panel-head {
@@ -271,47 +274,86 @@
             align-items: center;
             gap: 12px;
             flex-wrap: wrap;
-            margin-bottom: 15px
+            margin-bottom: 15px;
         }
 
         .panel-head h2 {
-            margin: 0
+            margin: 0;
         }
 
         #insightOutput {
             line-height: 1.75;
             color: #dce5f7;
-            overflow-wrap: anywhere
+            overflow-wrap: anywhere;
         }
 
         #insightOutput h1,
         #insightOutput h2,
         #insightOutput h3 {
-            margin: 18px 0 8px;
-            color: #fff
+            color: white;
+            line-height: 1.4;
+            margin: 18px 0 10px;
+        }
+
+        #insightOutput h1 {
+            font-size: 25px;
+        }
+
+        #insightOutput h2 {
+            font-size: 21px;
+        }
+
+        #insightOutput h3 {
+            font-size: 18px;
         }
 
         #insightOutput p {
-            margin: 10px 0
+            margin: 12px 0;
         }
 
         #insightOutput ul,
         #insightOutput ol {
-            padding-left: 24px
+            padding-left: 25px;
         }
 
         #insightOutput li {
-            margin: 6px 0
+            margin: 7px 0;
         }
 
         #insightOutput strong {
-            color: #fff
+            color: white;
         }
 
-        #insightOutput code {
-            background: #091225;
-            padding: 2px 5px;
-            border-radius: 4px
+        #insightOutput blockquote {
+            margin: 14px 0;
+            padding: 10px 15px;
+            border-left: 3px solid var(--purple);
+            background: #111b30;
+            border-radius: 6px;
+        }
+
+        #insightOutput hr {
+            border: 0;
+            border-top: 1px solid var(--border);
+            margin: 18px 0;
+        }
+
+        #insightOutput table {
+            width: 100%;
+            border-collapse: collapse;
+            display: block;
+            overflow-x: auto;
+        }
+
+        #insightOutput th,
+        #insightOutput td {
+            border: 1px solid var(--border);
+            padding: 9px;
+            text-align: left;
+        }
+
+        #insightOutput th {
+            background: #17243c;
         }
 
         .message {
@@ -320,7 +362,7 @@
             background: #0b1426;
             color: var(--muted);
             line-height: 1.6;
-            overflow-wrap: anywhere
+            overflow-wrap: anywhere;
         }
 
         .pill {
@@ -328,20 +370,20 @@
             border-radius: 20px;
             padding: 5px 9px;
             background: #233452;
-            color: #cbd8f5
+            color: #cbd8f5;
         }
 
         .field-label {
             display: grid;
             gap: 7px;
             color: var(--muted);
-            font-size: 13px
+            font-size: 13px;
         }
 
         .alert-list,
         .history-list {
             display: grid;
-            gap: 10px
+            gap: 10px;
         }
 
         .alert-item,
@@ -353,64 +395,68 @@
             padding: 12px;
             background: #0b1426;
             border: 1px solid var(--border);
-            border-radius: 10px
+            border-radius: 10px;
         }
 
         footer {
             color: var(--muted);
             font-size: 12px;
             text-align: center;
-            padding: 30px 0 10px
+            padding: 30px 0 10px;
+        }
+
+        .hidden {
+            display: none !important;
         }
 
         @media(max-width:1050px) {
 
             .stocks,
             .grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr))
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .two-col {
-                grid-template-columns: 1fr
+                grid-template-columns: 1fr;
             }
         }
 
         @media(max-width:720px) {
             .shell {
-                grid-template-columns: 1fr
+                grid-template-columns: 1fr;
             }
 
             .sidebar {
                 position: static;
                 height: auto;
-                padding: 16px
+                padding: 16px;
             }
 
             .sidebar nav {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
-                margin-top: 16px
+                margin-top: 16px;
             }
 
             .sidebar nav button {
                 font-size: 12px;
-                padding: 9px
+                padding: 9px;
             }
 
             .side-note {
-                display: none
+                display: none;
             }
 
             main {
-                padding: 18px
+                padding: 18px;
             }
 
             .stocks,
             .grid {
-                grid-template-columns: 1fr
+                grid-template-columns: 1fr;
             }
 
             .title {
-                font-size: 28px
+                font-size: 28px;
             }
         }
     </style>
@@ -421,6 +467,7 @@
         <aside class="sidebar">
             <div class="brand">↗ StockWatch</div>
             <div class="muted">Real-time market watchdog</div>
+
             <nav>
                 <button class="active" data-target="overview">▦ Overview</button>
                 <button data-target="watchlist">☆ Watchlist</button>
@@ -429,9 +476,15 @@
                 <button data-target="alertsSection">♧ Price Alerts</button>
                 <button data-target="architecture">⚙ Architecture</button>
             </nav>
-            <div class="side-note"><strong>System flow</strong><br>Input → API Client → JSON Parser → Data Processor →
-                Display → Scheduler<br><br><span class="muted">Snapshots are stored in CSV where persistent storage is
-                    configured.</span></div>
+
+            <div class="side-note">
+                <strong>System flow</strong><br>
+                Input → API Client → JSON Parser → Data Processor → Display → Scheduler
+                <br><br>
+                <span class="muted">
+                    Snapshots are stored in CSV where the deployment filesystem permits.
+                </span>
+            </div>
         </aside>
 
         <main>
@@ -441,8 +494,10 @@
                     <h1 class="title">Market Overview</h1>
                     <div class="muted">Fetch, parse, process, display, save and review stock data.</div>
                 </div>
-                <div class="row"><span class="status" id="quoteStatus">Checking service…</span><button id="refreshBtn">↻
-                        Refresh quotes</button></div>
+                <div class="row">
+                    <span class="status" id="quoteStatus">Checking service…</span>
+                    <button id="refreshBtn">↻ Refresh quotes</button>
+                </div>
             </header>
 
             <section class="section grid">
@@ -466,9 +521,10 @@
             <section class="section panel">
                 <h2>Input Handler · Add a stock</h2>
                 <p class="muted">Enter a stock ticker, such as AAPL, MSFT or GOOGL.</p>
-                <form id="addForm" class="formrow"><input id="symbolInput" maxlength="20"
-                        placeholder="Stock symbol (e.g. AAPL)" required><button id="addButton" type="submit">＋ Add
-                        stock</button></form>
+                <form id="addForm" class="formrow">
+                    <input id="symbolInput" maxlength="20" placeholder="Stock symbol (e.g. AAPL)" required>
+                    <button id="addButton" type="submit">＋ Add stock</button>
+                </form>
                 <p class="muted" id="addMessage" aria-live="polite"></p>
             </section>
 
@@ -477,7 +533,8 @@
                     <div>
                         <h2>My Watchlist</h2>
                         <div class="muted">Latest available quotes and daily metrics</div>
-                    </div><span class="pill">API Client · JSON Parser</span>
+                    </div>
+                    <span class="pill">API Client · JSON Parser</span>
                 </div>
                 <div class="stocks" id="watchlistGrid">
                     <div class="message">Loading watchlist…</div>
@@ -490,14 +547,17 @@
                         <div>
                             <h2>Price History</h2>
                             <div class="muted">Saved snapshots, not guaranteed continuous intraday data</div>
-                        </div><select id="historySymbol" aria-label="History stock"></select>
+                        </div>
+                        <select id="historySymbol" aria-label="History stock"></select>
                     </div>
                     <canvas id="priceChart" height="125"></canvas>
                     <div class="message" id="historyMessage">Select a ticker to load saved history.</div>
                 </div>
+
                 <div class="panel">
                     <div class="panel-head">
-                        <h2>Data Processor</h2><span class="pill">Metrics</span>
+                        <h2>Data Processor</h2>
+                        <span class="pill">Metrics</span>
                     </div>
                     <div class="history-list" id="metricsList">
                         <div class="message">Metrics appear after quotes load.</div>
@@ -511,19 +571,34 @@
                         <div>
                             <h2>✦ Gemini AI Insights</h2>
                             <div class="muted">Educational analysis of saved StockWatch data</div>
-                        </div><span class="pill">AI module</span>
+                        </div>
+                        <span class="pill">AI module</span>
                     </div>
-                    <label class="field-label">Choose a stock<select id="aiSymbol"></select></label>
-                    <div class="row" style="margin-top:13px"><button id="aiButton">Generate AI report</button><span
-                            class="muted" id="aiStatus" aria-live="polite"></span></div>
-                    <div class="message" id="insightOutput" style="margin-top:15px">Choose a ticker and generate a
-                        report. At least one saved quote or cached quote is required.</div>
+
+                    <label class="field-label">
+                        Choose a stock
+                        <select id="aiSymbol"></select>
+                    </label>
+
+                    <div class="row" style="margin-top:13px">
+                        <button id="aiButton">Generate AI report</button>
+                        <span class="muted" id="aiStatus" aria-live="polite"></span>
+                    </div>
+
+                    <div class="message" id="insightOutput" style="margin-top:15px">
+                        Choose a ticker and generate a report. At least one saved quote or cached quote is required.
+                    </div>
                 </div>
+
                 <div class="panel">
                     <h2>Report limitations</h2>
-                    <p class="muted">The report uses saved snapshots and an available cached quote. It does not
-                        automatically fetch news or predict future prices.</p>
-                    <p class="muted">AI output is educational, may be incorrect, and is not financial advice.</p>
+                    <p class="muted">
+                        The report uses saved snapshots and an available cached quote.
+                        It does not automatically fetch news or predict future prices.
+                    </p>
+                    <p class="muted">
+                        AI output is educational, may be incorrect, and is not financial advice.
+                    </p>
                     <div class="message" id="configStatus">Checking API configuration…</div>
                 </div>
             </section>
@@ -531,8 +606,11 @@
             <section class="section two-col" id="alertsSection">
                 <div class="panel">
                     <h2>Price Alerts</h2>
-                    <p class="muted">Create a browser-session alert for a target price. Alerts are checked when a quote
-                        is successfully loaded.</p>
+                    <p class="muted">
+                        Create a browser-session alert for a target price. Alerts are checked when a quote is
+                        successfully loaded.
+                    </p>
+
                     <form id="alertForm" class="formrow">
                         <select id="alertSymbol" required aria-label="Alert stock"></select>
                         <select id="alertDirection" aria-label="Alert condition">
@@ -545,9 +623,11 @@
                     </form>
                     <p id="alertMessage" class="muted" aria-live="polite"></p>
                 </div>
+
                 <div class="panel">
                     <div class="panel-head">
-                        <h2>Your alerts</h2><button class="secondary" id="clearAlerts">Clear all</button>
+                        <h2>Your alerts</h2>
+                        <button class="secondary" id="clearAlerts">Clear all</button>
                     </div>
                     <div class="alert-list" id="alertList">
                         <div class="message">No alerts yet.</div>
@@ -559,21 +639,29 @@
                 <div class="panel-head">
                     <div>
                         <h2>Scheduler · Monitoring Loop</h2>
-                        <div class="muted">Refresh quotes while this page is open.</div>
-                    </div><span class="pill" id="schedulerState">Stopped</span>
+                        <div class="muted">Automatically refresh quotes while this page is open.</div>
+                    </div>
+                    <span class="pill" id="schedulerState">Stopped</span>
                 </div>
+
                 <div class="formrow">
-                    <label class="field-label">Refresh interval<select id="refreshInterval">
+                    <label class="field-label">
+                        Refresh interval
+                        <select id="refreshInterval">
                             <option value="60">60 seconds</option>
                             <option value="120">2 minutes</option>
                             <option value="300">5 minutes</option>
                             <option value="600">10 minutes</option>
-                        </select></label>
-                    <button id="startScheduler">▶ Start monitoring</button><button id="stopScheduler" class="secondary"
-                        disabled>■ Stop</button>
+                        </select>
+                    </label>
+                    <button id="startScheduler">▶ Start monitoring</button>
+                    <button id="stopScheduler" class="secondary" disabled>■ Stop</button>
                 </div>
-                <p class="muted">The browser scheduler stops when the page closes. For monitoring while the site is
-                    closed, run the server-side monitor as a separate Render Background Worker.</p>
+
+                <p class="muted">
+                    Twelve Data provider limits may apply. This browser-based scheduler stops when the page is closed
+                    and is not a permanent background worker.
+                </p>
             </section>
 
             <section class="section panel" id="architecture">
@@ -587,22 +675,24 @@
                     </div>
                     <div class="message"><strong>5. Display Module</strong><br>Cards, metrics, chart and Gemini report
                     </div>
-                    <div class="message"><strong>6. Scheduler</strong><br>Browser refresh and optional server-side
-                        monitor</div>
-                    <div class="message"><strong>7. Local Storage</strong><br>CSV snapshots and watchlist JSON</div>
+                    <div class="message"><strong>6. Scheduler</strong><br>Browser refresh loop with start/stop</div>
+                    <div class="message"><strong>7. Local Storage</strong><br>CSV snapshots on the server filesystem
+                    </div>
                     <div class="message"><strong>External Libraries</strong><br>Flask, requests, dotenv, google-genai,
                         Chart.js</div>
-                    <div class="message"><strong>Frontend</strong><br>Responsive web dashboard</div>
+                    <div class="message"><strong>Frontend</strong><br>Responsive web dashboard instead of terminal-only
+                        UI</div>
                 </div>
             </section>
+
             <footer>StockWatch · Learning project · Market data can be delayed or unavailable.</footer>
         </main>
     </div>
-
     <script>
         "use strict";
 
         const $ = id => document.getElementById(id);
+
         let symbols = [];
         let chart = null;
         let scheduler = null;
@@ -611,7 +701,9 @@
         let loading = false;
         let queuedRefresh = false;
         let loadSequence = 0;
-        const REQUEST_TIMEOUT_MS = 15000;
+
+        /* Increased from 12 seconds to 60 seconds. */
+        const REQUEST_TIMEOUT_MS = 60000;
 
         try {
             alerts = JSON.parse(sessionStorage.getItem("stockwatchAlerts") || "[]");
@@ -637,16 +729,15 @@
                 const data = await response.json().catch(() => ({}));
 
                 if (!response.ok) {
-                    const error = new Error(data.error || `Request failed (${response.status})`);
-                    error.status = response.status;
-                    error.data = data;
-                    throw error;
+                    throw new Error(data.error || `Request failed (${response.status})`);
                 }
 
                 return data;
             } catch (error) {
                 if (error.name === "AbortError") {
-                    throw new Error("The request timed out. Please try again.");
+                    throw new Error(
+                        "The request took longer than 60 seconds. Check Gemini API access, quota, model, and Render logs."
+                    );
                 }
                 throw error;
             } finally {
@@ -657,14 +748,32 @@
         function money(value) {
             const n = Number(value);
             return Number.isFinite(n)
-                ? n.toLocaleString("en-US", { style: "currency", currency: "USD" })
+                ? n.toLocaleString("en-US", {
+                    style: "currency",
+                    currency: "USD"
+                })
                 : "—";
         }
 
         function escapeHtml(value) {
             return String(value ?? "").replace(/[&<>"']/g, c => ({
-                "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;"
             }[c]));
+        }
+
+        /* Safely render Gemini Markdown as formatted HTML. */
+        function renderMarkdown(markdown) {
+            const source = String(markdown || "");
+
+            if (typeof marked !== "undefined" && typeof DOMPurify !== "undefined") {
+                return DOMPurify.sanitize(marked.parse(source));
+            }
+
+            return escapeHtml(source).replace(/\n/g, "<br>");
         }
 
         function saveAlerts() {
@@ -678,20 +787,25 @@
             ["historySymbol", "aiSymbol", "alertSymbol"].forEach(id => {
                 const select = $(id);
                 const previous = select.value;
+
                 select.innerHTML = symbols.map(s =>
                     `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`
                 ).join("");
+
                 if (symbols.includes(previous)) select.value = previous;
             });
+
             $("stockCount").textContent = symbols.length;
         }
 
         function checkAlerts(symbol, price) {
-            if (!Number.isFinite(price)) return;
-
             alerts.forEach(item => {
                 if (item.symbol !== symbol || item.triggered) return;
-                const hit = item.direction === "above" ? price >= item.price : price <= item.price;
+
+                const hit = item.direction === "above"
+                    ? price >= item.price
+                    : price <= item.price;
+
                 if (hit) {
                     item.triggered = true;
                     item.triggeredAt = new Date().toLocaleTimeString();
@@ -699,35 +813,67 @@
                     window.alert(item.message);
                 }
             });
+
             saveAlerts();
         }
 
         function renderAlerts() {
             $("alertCount").textContent = alerts.filter(a => !a.triggered).length;
-            $("alertList").innerHTML = alerts.length ? alerts.map((a, i) => `
-        <div class="alert-item">
-            <div><strong>${escapeHtml(a.symbol)}</strong>
-            ${a.direction === "above" ? "≥" : "≤"} ${money(a.price)}
-            <div class="muted">${a.triggered ? "Triggered " + escapeHtml(a.triggeredAt || "") : "Waiting for a successful quote"}</div></div>
-            <button class="danger" data-remove-alert="${i}">Remove</button>
-        </div>`).join("") : '<div class="message">No alerts yet.</div>';
+
+            $("alertList").innerHTML = alerts.length
+                ? alerts.map((a, i) => `
+            <div class="alert-item">
+                <div>
+                    <strong>${escapeHtml(a.symbol)}</strong>
+                    ${a.direction === "above" ? "≥" : "≤"} ${money(a.price)}
+                    <div class="muted">
+                        ${a.triggered
+                        ? "Triggered " + escapeHtml(a.triggeredAt || "")
+                        : "Waiting for a successful quote"}
+                    </div>
+                </div>
+                <button class="danger" data-remove-alert="${i}">Remove</button>
+            </div>
+        `).join("")
+                : '<div class="message">No alerts yet.</div>';
         }
 
         function renderMetrics(d) {
-            const change = Number(d.change);
             $("metricsList").innerHTML = `
-        <div class="history-item"><span>Last quote</span><strong>${money(d.price)}</strong></div>
-        <div class="history-item"><span>Daily change</span><strong class="${change >= 0 ? "positive" : "negative"}">${Number.isFinite(change) ? change.toFixed(2) : "—"} (${escapeHtml(d.change_percent ?? "")})</strong></div>
-        <div class="history-item"><span>Day high</span><strong>${money(d.high)}</strong></div>
-        <div class="history-item"><span>Day low</span><strong>${money(d.low)}</strong></div>
-        <div class="history-item"><span>Quote timestamp</span><span>${escapeHtml(d.updated_at || "Unavailable")}</span></div>`;
+        <div class="history-item">
+            <span>Last quote</span>
+            <strong>${money(d.price)}</strong>
+        </div>
+        <div class="history-item">
+            <span>Daily change</span>
+            <strong class="${Number(d.change) >= 0 ? "positive" : "negative"}">
+                ${Number(d.change).toFixed(2)} (${escapeHtml(d.change_percent)})
+            </strong>
+        </div>
+        <div class="history-item">
+            <span>Day high</span>
+            <strong>${money(d.high)}</strong>
+        </div>
+        <div class="history-item">
+            <span>Day low</span>
+            <strong>${money(d.low)}</strong>
+        </div>
+        <div class="history-item">
+            <span>Quote timestamp</span>
+            <span>${escapeHtml(d.updated_at || "Unavailable")}</span>
+        </div>
+    `;
         }
 
         async function loadStock(symbol, force = false) {
             try {
-                const data = await api(`/api/stock/${encodeURIComponent(symbol)}${force ? "?refresh=1" : ""}`);
+                const data = await api(
+                    `/api/stock/${encodeURIComponent(symbol)}${force ? "?refresh=1" : ""}`
+                );
+
                 latestQuotes[symbol] = data;
                 checkAlerts(symbol, Number(data.price));
+
                 return { symbol, data };
             } catch (error) {
                 return { symbol, error: error.message };
@@ -741,32 +887,39 @@
 
             if (quote.data) {
                 const d = quote.data;
-                const change = Number(d.change);
+
                 card.innerHTML = `
             <div class="row" style="justify-content:space-between">
-                <div class="symbol">${escapeHtml(symbol)}</div><span class="pill">Quote loaded</span>
+                <div class="symbol">${escapeHtml(symbol)}</div>
+                <span class="pill">Quote loaded</span>
             </div>
             <div class="price">${money(d.price)}</div>
-            <div class="${change >= 0 ? "positive" : "negative"}">${Number.isFinite(change) ? change.toFixed(2) : "—"} (${escapeHtml(d.change_percent ?? "")})</div>
+            <div class="${Number(d.change) >= 0 ? "positive" : "negative"}">
+                ${Number(d.change).toFixed(2)} (${escapeHtml(d.change_percent ?? "")})
+            </div>
             <p class="muted">High ${money(d.high)} · Low ${money(d.low)}</p>
             <p class="muted">Updated ${escapeHtml(d.updated_at || "")}</p>
             <div class="stock-actions">
                 <button data-insight="${escapeHtml(symbol)}">✦ AI report</button>
                 <button class="secondary" data-history="${escapeHtml(symbol)}">History</button>
                 <button class="danger" data-remove="${escapeHtml(symbol)}">Remove</button>
-            </div>`;
+            </div>
+        `;
             } else {
                 card.innerHTML = `
             <div class="row" style="justify-content:space-between">
-                <div class="symbol">${escapeHtml(symbol)}</div><span class="pill">Unavailable</span>
+                <div class="symbol">${escapeHtml(symbol)}</div>
+                <span class="pill">Unavailable</span>
             </div>
             <p class="quote-error">${escapeHtml(quote.error || "Quote unavailable")}</p>
             <div class="stock-actions">
                 <button data-insight="${escapeHtml(symbol)}">✦ AI report</button>
                 <button class="secondary" data-history="${escapeHtml(symbol)}">History</button>
                 <button class="danger" data-remove="${escapeHtml(symbol)}">Remove</button>
-            </div>`;
+            </div>
+        `;
             }
+
             return card;
         }
 
@@ -778,14 +931,17 @@
 
             loading = true;
             const thisSequence = ++loadSequence;
+
             $("quoteStatus").textContent = "Loading quotes…";
             $("refreshBtn").disabled = true;
 
             try {
                 const response = await api("/api/watchlist");
+
                 if (thisSequence !== loadSequence) return;
 
                 const unique = [];
+
                 (Array.isArray(response.symbols) ? response.symbols : []).forEach(value => {
                     const s = String(value || "").trim().toUpperCase();
                     if (s && !unique.includes(s)) unique.push(s);
@@ -801,24 +957,30 @@
                     grid.innerHTML = '<div class="message">Your watchlist is empty. Add a stock above.</div>';
                 }
 
+                let successes = 0;
+                let failures = 0;
                 const cards = {};
+
                 symbols.forEach(s => {
                     const card = document.createElement("article");
                     card.className = "stock-card";
                     card.dataset.stockCard = s;
-                    card.innerHTML = `<div class="symbol">${escapeHtml(s)}</div><p class="muted">Loading quote…</p>`;
+                    card.innerHTML = `
+                <div class="symbol">${escapeHtml(s)}</div>
+                <p class="muted">Loading quote…</p>
+            `;
                     cards[s] = card;
                     grid.appendChild(card);
                 });
 
-                let successes = 0;
-                let failures = 0;
-
+                /* Sequential requests help avoid bursting the free stock API. */
                 for (const symbol of symbols) {
                     const quote = await loadStock(symbol, force);
+
                     if (thisSequence !== loadSequence) return;
 
-                    if (cards[symbol]) cards[symbol].replaceWith(renderCard(symbol, quote));
+                    cards[symbol].replaceWith(renderCard(symbol, quote));
+
                     if (quote.data) successes++;
                     else failures++;
                 }
@@ -829,32 +991,42 @@
 
                 try {
                     let summary;
+
                     try {
                         summary = await api("/api/summary");
                     } catch {
                         summary = await api("/api/stats");
                     }
+
                     $("snapshotCount").textContent =
-                        summary.saved_snapshots ?? summary.snapshots ?? summary.snapshot_count ?? 0;
+                        summary.saved_snapshots ??
+                        summary.snapshots ??
+                        summary.snapshot_count ??
+                        0;
                 } catch { }
 
-                if (symbols.length) await loadHistory($("historySymbol").value || symbols[0]);
+                if (symbols.length) {
+                    await loadHistory($("historySymbol").value || symbols[0]);
+                }
 
                 const first = symbols.find(s => latestQuotes[s]);
+
                 if (first) renderMetrics(latestQuotes[first]);
 
             } catch (error) {
                 $("quoteStatus").textContent = error.message;
-                $("watchlistGrid").innerHTML =
-                    `<div class="message">${escapeHtml(error.message)}</div>`;
+
+                if (!$("watchlistGrid").children.length) {
+                    $("watchlistGrid").innerHTML =
+                        `<div class="message">${escapeHtml(error.message)}</div>`;
+                }
             } finally {
                 loading = false;
                 $("refreshBtn").disabled = false;
 
                 if (queuedRefresh) {
                     queuedRefresh = false;
-                    // Start the queued refresh after the current load has fully finished.
-                    setTimeout(() => loadWatchlist(false), 0);
+                    loadWatchlist(force);
                 }
             }
         }
@@ -862,26 +1034,27 @@
         async function loadHistory(symbol) {
             if (!symbol) {
                 $("historyMessage").textContent = "Add a stock to view history.";
+
                 if (chart) {
                     chart.destroy();
                     chart = null;
                 }
+
                 return;
             }
 
             try {
                 const rows = await api(`/api/history/${encodeURIComponent(symbol)}`);
+
                 $("historyMessage").textContent = rows.length
                     ? `${rows.length} saved snapshot(s) for ${symbol}.`
                     : `No saved history for ${symbol} yet. A successful quote will save a snapshot.`;
 
-                if (chart) {
-                    chart.destroy();
-                    chart = null;
-                }
+                if (chart) chart.destroy();
 
                 if (typeof Chart === "undefined") {
-                    $("historyMessage").textContent += " Chart library could not load, but the history API is available.";
+                    $("historyMessage").textContent +=
+                        " Chart library could not load, but the history API is available.";
                     return;
                 }
 
@@ -901,10 +1074,21 @@
                     },
                     options: {
                         responsive: true,
-                        plugins: { legend: { labels: { color: "#dce5f7" } } },
+                        plugins: {
+                            legend: {
+                                labels: { color: "#dce5f7" }
+                            }
+                        },
                         scales: {
-                            x: { ticks: { color: "#9db0d0", maxTicksLimit: 6 } },
-                            y: { ticks: { color: "#9db0d0" } }
+                            x: {
+                                ticks: {
+                                    color: "#9db0d0",
+                                    maxTicksLimit: 6
+                                }
+                            },
+                            y: {
+                                ticks: { color: "#9db0d0" }
+                            }
                         }
                     }
                 });
@@ -913,38 +1097,29 @@
             }
         }
 
-        function renderMarkdown(text) {
-            // marked converts Gemini Markdown to HTML. Escape raw HTML first to
-            // avoid treating model output as trusted HTML.
-            const safeText = String(text ?? "");
-            if (typeof marked === "undefined") {
-                $("insightOutput").textContent = safeText;
-                return;
-            }
-
-            const escaped = safeText
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-
-            $("insightOutput").innerHTML = marked.parse(escaped);
-        }
-
+        /* Gemini report: allow the request up to 60 seconds. */
         async function generateInsights(symbol) {
             if (!symbol) return;
 
             $("aiSymbol").value = symbol;
-            $("insightOutput").textContent = "Generating educational report…";
-            $("aiStatus").textContent = "Contacting Gemini";
             $("aiButton").disabled = true;
+            $("insightOutput").textContent = "Generating educational report…";
+            $("aiStatus").textContent = "Contacting Gemini; this may take up to 60 seconds…";
 
             try {
                 const result = await api("/api/ai-insights", {
                     method: "POST",
                     body: JSON.stringify({ symbol })
                 });
-                renderMarkdown(result.insights || "Gemini returned no report.");
-                $("aiStatus").textContent = `${result.data_points ?? 0} saved snapshot(s)`;
+
+                if (!result.insights) {
+                    throw new Error("Gemini returned an empty report. Please try again.");
+                }
+
+                $("insightOutput").innerHTML = renderMarkdown(result.insights);
+                $("aiStatus").textContent =
+                    `${result.data_points ?? 0} saved snapshot(s) · Report generated`;
+
             } catch (error) {
                 $("insightOutput").textContent = error.message;
                 $("aiStatus").textContent = "Could not generate report";
@@ -956,9 +1131,16 @@
         async function loadConfig() {
             try {
                 const c = await api("/api/config");
-                const td = c.twelve_data_configured ?? c.twelvedata_configured ?? false;
+
+                const td = c.twelve_data_configured ??
+                    c.twelvedata_configured ??
+                    false;
+
                 $("configStatus").textContent =
-                    `Twelve Data: ${td ? "configured" : "check server configuration"} · Gemini: ${c.gemini_configured ? "configured" : "missing"}. API keys remain on the server.`;
+                    `Twelve Data: ${td ? "configured" : "check server configuration"} · ` +
+                    `Gemini: ${c.gemini_configured ? "configured" : "missing"}. ` +
+                    "API keys remain on the server.";
+
             } catch (error) {
                 $("configStatus").textContent = error.message;
             }
@@ -971,7 +1153,7 @@
             if (!symbol) return;
 
             $("addButton").disabled = true;
-            $("addMessage").textContent = `Adding ${symbol}…`;
+            $("addMessage").textContent = `Checking ${symbol}…`;
 
             try {
                 const result = await api("/api/watchlist", {
@@ -979,32 +1161,20 @@
                     body: JSON.stringify({ symbol })
                 });
 
-                symbols = Array.isArray(result.symbols) ? result.symbols : symbols;
-                $("symbolInput").value = "";
-                $("addMessage").textContent = `${result.added || symbol} added to your watchlist.`;
+                $("addMessage").textContent =
+                    `${result.added || symbol} added to your watchlist.`;
 
-                // Wait for any current refresh, then reconcile from the server.
-                if (loading) {
-                    queuedRefresh = true;
-                    while (loading) {
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                    }
-                }
+                $("symbolInput").value = "";
+                symbols = Array.isArray(result.symbols) ? result.symbols : [];
+
                 await loadWatchlist();
 
             } catch (error) {
                 $("addMessage").textContent = error.message;
 
-                // For a duplicate response, use the server's authoritative symbols.
-                if (error.data && Array.isArray(error.data.symbols)) {
-                    symbols = [...new Set(error.data.symbols.map(s => String(s).toUpperCase()))];
-                }
-
-                if (loading) {
-                    queuedRefresh = true;
-                } else {
+                try {
                     await loadWatchlist();
-                }
+                } catch { }
             } finally {
                 $("addButton").disabled = false;
             }
@@ -1017,14 +1187,12 @@
             if (button.dataset.insight) {
                 $("aiSection").scrollIntoView({ behavior: "smooth" });
                 await generateInsights(button.dataset.insight);
-                return;
             }
 
             if (button.dataset.history) {
                 $("historySymbol").value = button.dataset.history;
                 $("historySection").scrollIntoView({ behavior: "smooth" });
                 await loadHistory(button.dataset.history);
-                return;
             }
 
             if (button.dataset.remove) {
@@ -1032,9 +1200,10 @@
                 button.disabled = true;
 
                 try {
-                    const result = await api(`/api/watchlist/${encodeURIComponent(symbol)}`, {
-                        method: "DELETE"
-                    });
+                    const result = await api(
+                        `/api/watchlist/${encodeURIComponent(symbol)}`,
+                        { method: "DELETE" }
+                    );
 
                     symbols = Array.isArray(result.symbols)
                         ? result.symbols
@@ -1043,24 +1212,23 @@
                     delete latestQuotes[symbol];
                     $("addMessage").textContent = `${symbol} removed.`;
 
-                    if (loading) {
-                        queuedRefresh = true;
-                        while (loading) {
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                        }
-                    }
                     await loadWatchlist();
 
                 } catch (error) {
                     $("addMessage").textContent = error.message;
-                    if (loading) queuedRefresh = true;
-                    else await loadWatchlist();
+                    await loadWatchlist();
                 }
             }
         });
 
-        $("historySymbol").addEventListener("change", event => loadHistory(event.target.value));
-        $("aiButton").addEventListener("click", () => generateInsights($("aiSymbol").value));
+        $("historySymbol").addEventListener("change", event => {
+            loadHistory(event.target.value);
+        });
+
+        $("aiButton").addEventListener("click", () => {
+            generateInsights($("aiSymbol").value);
+        });
+
         $("refreshBtn").addEventListener("click", () => loadWatchlist(true));
 
         $("alertForm").addEventListener("submit", event => {
@@ -1074,12 +1242,16 @@
             });
 
             saveAlerts();
-            $("alertMessage").textContent = "Alert saved. It will be checked after a successful quote loads.";
+
+            $("alertMessage").textContent =
+                "Alert saved. It will be checked after a successful quote loads.";
+
             $("alertPrice").value = "";
         });
 
         $("alertList").addEventListener("click", event => {
             const button = event.target.closest("[data-remove-alert]");
+
             if (button) {
                 alerts.splice(Number(button.dataset.removeAlert), 1);
                 saveAlerts();
@@ -1095,6 +1267,7 @@
             if (scheduler) clearInterval(scheduler);
 
             const seconds = Number($("refreshInterval").value);
+
             scheduler = setInterval(() => loadWatchlist(true), seconds * 1000);
 
             $("schedulerState").textContent = `Running · ${seconds}s`;
@@ -1104,6 +1277,7 @@
 
         $("stopScheduler").addEventListener("click", () => {
             if (scheduler) clearInterval(scheduler);
+
             scheduler = null;
             $("schedulerState").textContent = "Stopped";
             $("startScheduler").disabled = false;
@@ -1112,9 +1286,14 @@
 
         document.querySelectorAll("nav button").forEach(button => {
             button.addEventListener("click", () => {
-                document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+                document.querySelectorAll("nav button").forEach(b => {
+                    b.classList.remove("active");
+                });
+
                 button.classList.add("active");
+
                 const target = $(button.dataset.target);
+
                 if (target) target.scrollIntoView({ behavior: "smooth" });
             });
         });
