@@ -1,44 +1,44 @@
-from google import genai
-from dotenv import load_dotenv
-from flask import Flask, render_template, jsonify, request
-import requests
-from flask import send_file
+
 import matplotlib.pyplot as plt
 import os
 import csv
 import json
 import time
-import sys
 from datetime import datetime
 from threading import Lock
 from io import BytesIO
 
+import requests
+from flask import Flask, render_template, jsonify, request, send_file
+from dotenv import load_dotenv
+from google import genai
 import pandas as pd
 import matplotlib
-
 matplotlib.use("Agg")
 
+# Optional plotting libraries for the Matplotlib history chart.
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
 
 load_dotenv(override=False)
 
 app = Flask(__name__)
 
+# API configuration
 TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
-# Configure DATA_DIR=/var/data in Render when a persistent disk
-# is mounted at /var/data. Locally, data stays beside app.py.
-DATA_DIR = os.getenv("DATA_DIR", app.root_path)
-os.makedirs(DATA_DIR, exist_ok=True)
-
-DATA_FILE = os.path.join(DATA_DIR, "stock_history.csv")
-WATCHLIST_FILE = os.path.join(DATA_DIR, "watchlist.json")
+# Data files
+DATA_FILE = os.path.join(app.root_path, "stock_history.csv")
+WATCHLIST_FILE = os.path.join(app.root_path, "watchlist.json")
 
 CACHE_SECONDS = 300
-MONITOR_INTERVAL_SECONDS = max(
-    60, int(os.getenv("MONITOR_INTERVAL_SECONDS", "300"))
-)
 
 cache = {}
 cache_lock = Lock()
@@ -54,6 +54,8 @@ gemini_client = (
 
 session = requests.Session()
 
+
+# -------------------- SYMBOL HELPERS --------------------
 
 def valid_symbol(value):
     symbol = str(value or "").strip().upper()
@@ -72,20 +74,24 @@ def unique_symbols(values):
 
     for value in values:
         symbol = valid_symbol(value)
+
         if symbol and symbol not in result:
             result.append(symbol)
 
     return result
 
 
+# -------------------- WATCHLIST STORAGE --------------------
+
 def load_watchlist():
     try:
         if os.path.exists(WATCHLIST_FILE):
-            with open(WATCHLIST_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            with open(WATCHLIST_FILE, "r", encoding="utf-8") as file:
+                data = json.load(file)
 
             if isinstance(data, list):
                 return unique_symbols(data)
+
     except (OSError, ValueError):
         app.logger.exception("Could not load watchlist")
 
@@ -95,8 +101,8 @@ def load_watchlist():
 def save_watchlist(symbols):
     temporary_file = WATCHLIST_FILE + ".tmp"
 
-    with open(temporary_file, "w", encoding="utf-8") as f:
-        json.dump(unique_symbols(symbols), f, indent=2)
+    with open(temporary_file, "w", encoding="utf-8") as file:
+        json.dump(unique_symbols(symbols), file, indent=2)
 
     os.replace(temporary_file, WATCHLIST_FILE)
 
@@ -104,10 +110,17 @@ def save_watchlist(symbols):
 watchlist = load_watchlist()
 
 
+# -------------------- PRICE HISTORY STORAGE --------------------
+
 def save_history(data):
     fields = [
-        "time", "symbol", "price",
-        "change", "percent", "high", "low"
+        "time",
+        "symbol",
+        "price",
+        "change",
+        "percent",
+        "high",
+        "low",
     ]
 
     with file_lock:
@@ -116,8 +129,13 @@ def save_history(data):
             and os.path.getsize(DATA_FILE) > 0
         )
 
-        with open(DATA_FILE, "a", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fields)
+        with open(
+            DATA_FILE,
+            "a",
+            newline="",
+            encoding="utf-8",
+        ) as file:
+            writer = csv.DictWriter(file, fieldnames=fields)
 
             if not exists:
                 writer.writeheader()
@@ -139,38 +157,45 @@ def read_history(symbol=None, limit=None):
     if not os.path.exists(DATA_FILE):
         return records
 
+    symbol = valid_symbol(symbol) if symbol else None
+
     with file_lock:
         try:
-            with open(DATA_FILE, "r", newline="", encoding="utf-8") as f:
-                for row in csv.DictReader(f):
-                    if symbol and row.get("symbol", "").upper() != symbol:
+            with open(
+                DATA_FILE,
+                "r",
+                newline="",
+                encoding="utf-8",
+            ) as file:
+                for row in csv.DictReader(file):
+                    row_symbol = row.get("symbol", "").upper()
+
+                    if symbol and row_symbol != symbol:
                         continue
 
                     try:
                         records.append({
                             "time": row.get("time", ""),
-                            "symbol": row.get("symbol", "").upper(),
+                            "symbol": row_symbol,
                             "price": float(row["price"]),
                             "change": float(row.get("change", 0)),
                             "percent": row.get("percent", ""),
                             "high": float(row.get("high", 0)),
                             "low": float(row.get("low", 0)),
                         })
+
                     except (ValueError, TypeError, KeyError):
                         continue
+
         except OSError:
             app.logger.exception("Could not read stock history")
 
     return records[-limit:] if limit else records
 
 
-def fetch_twelve_data(symbol):
-    if not TWELVE_DATA_API_KEY:
-        raise RuntimeError(
-            "Twelve Data API key is missing. Configure "
-            "TWELVE_DATA_API_KEY in Render."
-        )
+# -------------------- TWELVE DATA API --------------------
 
+def fetch_twelve_data(symbol):
     response = session.get(
         "https://api.twelvedata.com/quote",
         params={
@@ -187,7 +212,8 @@ def fetch_twelve_data(symbol):
 
     if response.status_code == 429:
         raise RuntimeError(
-            "Twelve Data rate limit reached. Please wait before refreshing."
+            "Twelve Data rate limit reached. "
+            "Please wait before refreshing."
         )
 
     if response.status_code >= 400:
@@ -206,10 +232,11 @@ def fetch_twelve_data(symbol):
         percent = result.get("percent_change", "0")
         high = float(result.get("high") or price)
         low = float(result.get("low") or price)
+
     except (KeyError, TypeError, ValueError):
         raise RuntimeError(
             "Twelve Data returned incomplete quote data. "
-            "Check the ticker and your market-data access."
+            "Check the ticker and market-data access."
         )
 
     return {
@@ -245,6 +272,12 @@ def get_stock(symbol, force=False):
         ):
             return cached["data"], None
 
+    if not TWELVE_DATA_API_KEY:
+        return None, (
+            "Twelve Data API key is missing. "
+            "Configure TWELVE_DATA_API_KEY."
+        )
+
     try:
         data = fetch_twelve_data(symbol)
 
@@ -272,6 +305,8 @@ def get_stock(symbol, force=False):
         return None, str(error)
 
 
+# -------------------- MAIN DASHBOARD --------------------
+
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -282,6 +317,8 @@ def health():
     return jsonify({"status": "ok"})
 
 
+# -------------------- CONFIGURATION --------------------
+
 @app.route("/api/config")
 def api_config():
     return jsonify({
@@ -291,11 +328,12 @@ def api_config():
         "alpha_vantage_configured": False,
         "gemini_configured": bool(GEMINI_API_KEY),
         "ai_configured": bool(GEMINI_API_KEY),
+        "matplotlib_available": MATPLOTLIB_AVAILABLE,
         "cache_seconds": CACHE_SECONDS,
-        "persistent_data_dir_configured": bool(os.getenv("DATA_DIR")),
-        "monitor_interval_seconds": MONITOR_INTERVAL_SECONDS,
     })
 
+
+# -------------------- DASHBOARD SUMMARY --------------------
 
 @app.route("/api/stats")
 @app.route("/api/summary")
@@ -303,16 +341,14 @@ def api_stats():
     with watchlist_lock:
         count = len(watchlist)
 
-    snapshots = read_history()
-
     return jsonify({
         "watchlist_count": count,
-        "saved_snapshots": len(snapshots),
-        "snapshot_count": len(snapshots),
-        "snapshots": len(snapshots),
+        "saved_snapshots": len(read_history()),
         "provider": "Twelve Data",
     })
 
+
+# -------------------- WATCHLIST ROUTES --------------------
 
 @app.route("/api/watchlist", methods=["GET", "POST"])
 def manage_watchlist():
@@ -320,14 +356,7 @@ def manage_watchlist():
 
     if request.method == "GET":
         with watchlist_lock:
-            # Normalize and persist the server's authoritative list.
             watchlist = unique_symbols(watchlist)
-
-            try:
-                save_watchlist(watchlist)
-            except OSError:
-                app.logger.exception("Could not normalize watchlist")
-
             return jsonify({"symbols": watchlist.copy()})
 
     body = request.get_json(silent=True) or {}
@@ -345,17 +374,18 @@ def manage_watchlist():
                 "symbols": watchlist.copy(),
             }), 409
 
-        updated = watchlist + [symbol]
+        watchlist.append(symbol)
 
         try:
-            save_watchlist(updated)
+            save_watchlist(watchlist)
+
         except OSError:
+            watchlist.remove(symbol)
             app.logger.exception("Could not save watchlist")
+
             return jsonify({
                 "error": "Could not save the watchlist on this server."
             }), 500
-
-        watchlist = updated
 
         return jsonify({
             "symbols": watchlist.copy(),
@@ -373,34 +403,37 @@ def remove_stock(symbol):
         return jsonify({"error": "Invalid stock ticker."}), 400
 
     with watchlist_lock:
-        updated = [
+        watchlist = [
             item for item in unique_symbols(watchlist)
             if item != symbol
         ]
 
         try:
-            save_watchlist(updated)
+            save_watchlist(watchlist)
+
         except OSError:
-            app.logger.exception("Could not save updated watchlist")
+            app.logger.exception("Could not save watchlist")
+
             return jsonify({
                 "error": "Could not save the updated watchlist."
             }), 500
 
-        watchlist = updated
+        return jsonify({"symbols": watchlist.copy()})
 
-    with cache_lock:
-        cache.pop(symbol, None)
 
-    return jsonify({"symbols": updated.copy()})
-
+# -------------------- STOCK QUOTE ROUTE --------------------
 
 @app.route("/api/stock/<symbol>")
 def stock_quote(symbol):
-    force = request.args.get("refresh", "").lower() in ("1", "true", "yes")
+    force = request.args.get(
+        "refresh", ""
+    ).lower() in ("1", "true", "yes")
+
     data, error = get_stock(symbol, force=force)
 
     if error:
         status = 429 if "rate limit" in error.lower() else 400
+
         return jsonify({
             "error": error,
             "symbol": str(symbol).upper(),
@@ -410,91 +443,109 @@ def stock_quote(symbol):
     return jsonify(data)
 
 
-@app.route("/api/history-chart/<symbol>")
-def stock_history_chart(symbol):
+# -------------------- PRICE HISTORY API --------------------
+
+@app.route("/api/history/<symbol>", methods=["GET"])
+def stock_history(symbol):
     symbol = valid_symbol(symbol)
 
     if not symbol:
         return jsonify({"error": "Enter a valid stock ticker."}), 400
 
-    # Pandas reads the saved CSV history.
-    if not os.path.exists(DATA_FILE):
+    records = read_history(symbol=symbol, limit=100)
+
+    return jsonify([
+        {
+            "time": item["time"],
+            "price": item["price"],
+        }
+        for item in records
+    ])
+
+
+# -------------------- MATPLOTLIB HISTORY CHART --------------------
+
+@app.route("/api/history-chart/<symbol>", methods=["GET"])
+def history_chart(symbol):
+    symbol = valid_symbol(symbol)
+
+    if not symbol:
+        return jsonify({"error": "Enter a valid stock ticker."}), 400
+
+    if not MATPLOTLIB_AVAILABLE:
         return jsonify({
-            "error": "No saved stock history is available yet."
+            "error": (
+                "Matplotlib is not installed. "
+                "Run: pip install matplotlib"
+            )
+        }), 503
+
+    records = read_history(symbol=symbol, limit=100)
+
+    if not records:
+        return jsonify({
+            "error": (
+                f"No saved snapshots for {symbol}. "
+                "Load the stock quote first."
+            )
         }), 404
 
+    times = [item["time"] for item in records]
+    prices = [item["price"] for item in records]
+
+    figure = None
+
     try:
-        with file_lock:
-            df = pd.read_csv(DATA_FILE)
+        figure, axis = plt.subplots(figsize=(12, 5))
 
-        if df.empty or not {"symbol", "time", "price"}.issubset(df.columns):
-            return jsonify({
-                "error": "The history file has no usable stock data."
-            }), 404
-
-        # Keep only the selected stock and valid prices.
-        df["symbol"] = df["symbol"].astype(str).str.upper()
-        df = df[df["symbol"] == symbol].copy()
-        df["price"] = pd.to_numeric(df["price"], errors="coerce")
-        df = df.dropna(subset=["price"])
-
-        if df.empty:
-            return jsonify({
-                "error": f"No saved history found for {symbol}."
-            }), 404
-
-        # Sort saved snapshots by timestamp.
-        df["time"] = pd.to_datetime(df["time"], errors="coerce")
-        df = df.dropna(subset=["time"]).sort_values("time")
-
-        if df.empty:
-            return jsonify({
-                "error": "No valid timestamps were found."
-            }), 404
-
-        # Matplotlib creates the price chart.
-        fig, ax = plt.subplots(figsize=(10, 5))
-
-        ax.plot(
-            df["time"],
-            df["price"],
+        axis.plot(
+            times,
+            prices,
             marker="o",
             linewidth=2,
-            label=f"{symbol} price"
+            label=f"{symbol} price",
         )
 
-        ax.set_title(f"{symbol} Saved Price History")
-        ax.set_xlabel("Recorded time")
-        ax.set_ylabel("Price (USD)")
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-        fig.autofmt_xdate()
-        fig.tight_layout()
+        axis.set_title(f"{symbol} Saved Price History")
+        axis.set_xlabel("Recorded time")
+        axis.set_ylabel("Price (USD)")
+        axis.grid(True, alpha=0.3)
+        axis.legend()
+        figure.autofmt_xdate()
+        figure.tight_layout()
 
-        # Return the chart as a PNG without saving a new file.
         image_buffer = BytesIO()
-        fig.savefig(image_buffer, format="png", dpi=140)
-        plt.close(fig)
+        figure.savefig(image_buffer, format="png", dpi=140)
         image_buffer.seek(0)
 
         return send_file(
             image_buffer,
             mimetype="image/png",
-            download_name=f"{symbol}_history.png"
+            download_name=f"{symbol}_history.png",
         )
 
     except Exception:
-        app.logger.exception("Could not generate stock history chart")
+        app.logger.exception("Could not generate history chart")
+
         return jsonify({
-            "error": "Could not generate the chart. Check server logs."
+            "error": "Could not generate the history chart."
         }), 500
 
+    finally:
+        if figure is not None:
+            plt.close(figure)
+
+
+# -------------------- GEMINI AI INSIGHTS --------------------
 
 @app.route("/api/ai-insights", methods=["POST"])
 def ai_insights():
     if gemini_client is None:
         return jsonify({
-            "error": "Gemini API key is missing. Configure GEMINI_API_KEY."
+            "error": (
+                "Gemini API key is missing. "
+                "Configure GEMINI_API_KEY."
+            )
         }), 503
 
     body = request.get_json(silent=True) or {}
@@ -519,6 +570,7 @@ def ai_insights():
 
     prompt = f"""
 You are the educational AI assistant inside StockWatch.
+
 Analyze only the supplied information for ticker {symbol}.
 
 Saved price snapshots:
@@ -533,7 +585,6 @@ Write a beginner-friendly report covering:
 3. Important limitations and missing information.
 4. Two questions a learner could investigate next.
 
-Use clear Markdown headings and bullet points.
 Do not invent prices, company news, or financial facts.
 Explain when the data is too small to identify a trend.
 Snapshots may be sparse and are not continuous historical data.
@@ -546,14 +597,15 @@ State that the report is educational, not financial advice.
         response = gemini_client.models.generate_content(
             model=GEMINI_MODEL,
             contents=prompt,
-            config={"http_options": {"timeout": 60000}},
         )
 
         insight_text = response.text
 
         if not insight_text:
             return jsonify({
-                "error": "Gemini returned an empty response. Please try again."
+                "error": (
+                    "Gemini returned an empty response. Please try again."
+                )
             }), 502
 
         return jsonify({
@@ -563,46 +615,25 @@ State that the report is educational, not financial advice.
             "source": "StockWatch saved snapshots and cached quote",
         })
 
-    except Exception:
-        app.logger.exception("Gemini request failed")
+    except Exception as error:
+        app.logger.error(
+            "Gemini request failed: %s",
+            type(error).__name__,
+        )
+
         return jsonify({
             "error": (
-                "Gemini could not generate insights. "
-                "Check Render logs for the detailed error."
+                "Gemini could not generate insights. Check the "
+                "configured model, API access, connection, and quota."
             )
         }), 502
 
 
-def monitor_forever():
-    """Server-side monitoring loop. Run as a separate Render worker."""
-    app.logger.info(
-        "StockWatch monitor started; interval=%s seconds",
-        MONITOR_INTERVAL_SECONDS,
-    )
-
-    while True:
-        with watchlist_lock:
-            current_symbols = unique_symbols(watchlist)
-
-        for symbol in current_symbols:
-            try:
-                data, error = get_stock(symbol, force=True)
-                if error:
-                    app.logger.warning("Monitor %s: %s", symbol, error)
-                else:
-                    app.logger.info(
-                        "Monitor saved %s at %s",
-                        symbol,
-                        data["price"],
-                    )
-            except Exception:
-                app.logger.exception("Monitor failed for %s", symbol)
-
-        time.sleep(MONITOR_INTERVAL_SECONDS)
-
+# -------------------- RUN APPLICATION --------------------
 
 if __name__ == "__main__":
-    if "--monitor" in sys.argv:
-        monitor_forever()
-    else:
-        app.run(debug=False)
+    app.run(
+        host="127.0.0.1",
+        port=int(os.getenv("PORT", "5000")),
+        debug=False,
+    )
