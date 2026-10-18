@@ -1,3 +1,9 @@
+from google import genai
+from dotenv import load_dotenv
+from flask import Flask, render_template, jsonify, request
+import requests
+from flask import send_file
+import matplotlib.pyplot as plt
 import os
 import csv
 import json
@@ -5,11 +11,13 @@ import time
 import sys
 from datetime import datetime
 from threading import Lock
+from io import BytesIO
 
-import requests
-from flask import Flask, render_template, jsonify, request
-from dotenv import load_dotenv
-from google import genai
+import pandas as pd
+import matplotlib
+
+matplotlib.use("Agg")
+
 
 load_dotenv(override=False)
 
@@ -402,19 +410,84 @@ def stock_quote(symbol):
     return jsonify(data)
 
 
-@app.route("/api/history/<symbol>")
-def stock_history(symbol):
+@app.route("/api/history-chart/<symbol>")
+def stock_history_chart(symbol):
     symbol = valid_symbol(symbol)
 
     if not symbol:
         return jsonify({"error": "Enter a valid stock ticker."}), 400
 
-    records = read_history(symbol=symbol, limit=100)
+    # Pandas reads the saved CSV history.
+    if not os.path.exists(DATA_FILE):
+        return jsonify({
+            "error": "No saved stock history is available yet."
+        }), 404
 
-    return jsonify([
-        {"time": item["time"], "price": item["price"]}
-        for item in records
-    ])
+    try:
+        with file_lock:
+            df = pd.read_csv(DATA_FILE)
+
+        if df.empty or not {"symbol", "time", "price"}.issubset(df.columns):
+            return jsonify({
+                "error": "The history file has no usable stock data."
+            }), 404
+
+        # Keep only the selected stock and valid prices.
+        df["symbol"] = df["symbol"].astype(str).str.upper()
+        df = df[df["symbol"] == symbol].copy()
+        df["price"] = pd.to_numeric(df["price"], errors="coerce")
+        df = df.dropna(subset=["price"])
+
+        if df.empty:
+            return jsonify({
+                "error": f"No saved history found for {symbol}."
+            }), 404
+
+        # Sort saved snapshots by timestamp.
+        df["time"] = pd.to_datetime(df["time"], errors="coerce")
+        df = df.dropna(subset=["time"]).sort_values("time")
+
+        if df.empty:
+            return jsonify({
+                "error": "No valid timestamps were found."
+            }), 404
+
+        # Matplotlib creates the price chart.
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        ax.plot(
+            df["time"],
+            df["price"],
+            marker="o",
+            linewidth=2,
+            label=f"{symbol} price"
+        )
+
+        ax.set_title(f"{symbol} Saved Price History")
+        ax.set_xlabel("Recorded time")
+        ax.set_ylabel("Price (USD)")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+        fig.autofmt_xdate()
+        fig.tight_layout()
+
+        # Return the chart as a PNG without saving a new file.
+        image_buffer = BytesIO()
+        fig.savefig(image_buffer, format="png", dpi=140)
+        plt.close(fig)
+        image_buffer.seek(0)
+
+        return send_file(
+            image_buffer,
+            mimetype="image/png",
+            download_name=f"{symbol}_history.png"
+        )
+
+    except Exception:
+        app.logger.exception("Could not generate stock history chart")
+        return jsonify({
+            "error": "Could not generate the chart. Check server logs."
+        }), 500
 
 
 @app.route("/api/ai-insights", methods=["POST"])
