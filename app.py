@@ -1,6 +1,7 @@
 
 import os
 import csv
+import json
 import time
 from datetime import datetime
 from threading import Lock
@@ -10,45 +11,35 @@ from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 from google import genai
 
-# --------------------------------------------------
-# Configuration
-# --------------------------------------------------
-
 load_dotenv(override=False)
 
 app = Flask(__name__)
 
 TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-
-# Keep the existing Gemini model setting from your working project.
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
 DATA_FILE = os.path.join(app.root_path, "stock_history.csv")
+WATCHLIST_FILE = os.path.join(app.root_path, "watchlist.json")
 
 CACHE_SECONDS = 300
 cache = {}
 cache_lock = Lock()
 file_lock = Lock()
+watchlist_lock = Lock()
 
-# The dashboard starts with these stocks.
-watchlist = ["AAPL", "MSFT", "GOOGL"]
+DEFAULT_WATCHLIST = ["AAPL", "MSFT", "GOOGL"]
 
 gemini_client = (
     genai.Client(api_key=GEMINI_API_KEY)
-    if GEMINI_API_KEY
-    else None
+    if GEMINI_API_KEY else None
 )
 
 session = requests.Session()
 
 
-# --------------------------------------------------
-# Helpers
-# --------------------------------------------------
-
-def valid_symbol(symbol):
-    symbol = str(symbol or "").strip().upper()
+def valid_symbol(value):
+    symbol = str(value or "").strip().upper()
 
     if not symbol or len(symbol) > 20:
         return None
@@ -59,38 +50,59 @@ def valid_symbol(symbol):
     return symbol
 
 
-def unique_symbols(symbols):
-    """Return valid symbols once each, preserving their order."""
+def unique_symbols(values):
     result = []
 
-    for item in symbols:
-        symbol = valid_symbol(item)
-
+    for value in values:
+        symbol = valid_symbol(value)
         if symbol and symbol not in result:
             result.append(symbol)
 
     return result
 
 
+def load_watchlist():
+    try:
+        if os.path.exists(WATCHLIST_FILE):
+            with open(WATCHLIST_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            if isinstance(data, list):
+                return unique_symbols(data)
+    except (OSError, ValueError):
+        app.logger.exception("Could not load watchlist")
+
+    return DEFAULT_WATCHLIST.copy()
+
+
+def save_watchlist(symbols):
+    temporary_file = WATCHLIST_FILE + ".tmp"
+
+    with open(temporary_file, "w", encoding="utf-8") as f:
+        json.dump(unique_symbols(symbols), f, indent=2)
+
+    os.replace(temporary_file, WATCHLIST_FILE)
+
+
+watchlist = load_watchlist()
+
+
 def save_history(data):
-    """Save a quote snapshot to CSV."""
     fields = [
         "time", "symbol", "price",
         "change", "percent", "high", "low"
     ]
 
     with file_lock:
-        file_exists = (
+        exists = (
             os.path.exists(DATA_FILE)
             and os.path.getsize(DATA_FILE) > 0
         )
 
-        with open(
-            DATA_FILE, "a", newline="", encoding="utf-8"
-        ) as file:
-            writer = csv.DictWriter(file, fieldnames=fields)
+        with open(DATA_FILE, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fields)
 
-            if not file_exists:
+            if not exists:
                 writer.writeheader()
 
             writer.writerow({
@@ -100,12 +112,11 @@ def save_history(data):
                 "change": data["change"],
                 "percent": data["change_percent"],
                 "high": data["high"],
-                "low": data["low"]
+                "low": data["low"],
             })
 
 
 def read_history(symbol=None, limit=None):
-    """Read saved snapshots, optionally for one symbol."""
     records = []
 
     if not os.path.exists(DATA_FILE):
@@ -113,16 +124,9 @@ def read_history(symbol=None, limit=None):
 
     with file_lock:
         try:
-            with open(
-                DATA_FILE, "r", newline="", encoding="utf-8"
-            ) as file:
-                reader = csv.DictReader(file)
-
-                for row in reader:
-                    if symbol and (
-                        row.get("symbol", "").upper()
-                        != symbol.upper()
-                    ):
+            with open(DATA_FILE, "r", newline="", encoding="utf-8") as f:
+                for row in csv.DictReader(f):
+                    if symbol and row.get("symbol", "").upper() != symbol:
                         continue
 
                     try:
@@ -133,28 +137,24 @@ def read_history(symbol=None, limit=None):
                             "change": float(row.get("change", 0)),
                             "percent": row.get("percent", ""),
                             "high": float(row.get("high", 0)),
-                            "low": float(row.get("low", 0))
+                            "low": float(row.get("low", 0)),
                         })
                     except (ValueError, TypeError, KeyError):
                         continue
         except OSError:
             app.logger.exception("Could not read stock history")
 
-    if limit is not None:
-        return records[-limit:]
-
-    return records
+    return records[-limit:] if limit else records
 
 
 def fetch_twelve_data(symbol):
-    """Fetch one quote and normalize its fields for the dashboard."""
     response = session.get(
         "https://api.twelvedata.com/quote",
         params={
             "symbol": symbol,
-            "apikey": TWELVE_DATA_API_KEY
+            "apikey": TWELVE_DATA_API_KEY,
         },
-        timeout=15
+        timeout=(5, 10),
     )
 
     try:
@@ -162,19 +162,20 @@ def fetch_twelve_data(symbol):
     except ValueError:
         result = {}
 
-    # Twelve Data may return an API error inside a JSON response.
     if response.status_code == 429:
         raise RuntimeError(
-            "Twelve Data rate limit reached. Wait before refreshing."
+            "Twelve Data rate limit reached. Please wait before refreshing."
         )
 
     if response.status_code >= 400:
-        message = result.get("message", "Stock provider request failed.")
-        raise RuntimeError(str(message))
+        raise RuntimeError(
+            str(result.get("message", "Twelve Data request failed."))
+        )
 
     if result.get("status") == "error" or result.get("code"):
-        message = result.get("message", "Stock data is unavailable.")
-        raise RuntimeError(str(message))
+        raise RuntimeError(
+            str(result.get("message", "Stock data is unavailable."))
+        )
 
     try:
         price = float(result["close"])
@@ -185,7 +186,7 @@ def fetch_twelve_data(symbol):
     except (KeyError, TypeError, ValueError):
         raise RuntimeError(
             "Twelve Data returned incomplete quote data. "
-            "Check the symbol and your plan's market-data access."
+            "Check the ticker and your market-data access."
         )
 
     return {
@@ -201,12 +202,11 @@ def fetch_twelve_data(symbol):
         "currency": result.get("currency", "USD"),
         "exchange": result.get("exchange", ""),
         "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "source": "Twelve Data"
+        "source": "Twelve Data",
     }
 
 
-def get_stock(symbol):
-    """Return a cached quote when possible to limit API usage."""
+def get_stock(symbol, force=False):
     symbol = valid_symbol(symbol)
 
     if not symbol:
@@ -215,13 +215,17 @@ def get_stock(symbol):
     with cache_lock:
         cached = cache.get(symbol)
 
-        if cached and time.time() - cached["saved_at"] < CACHE_SECONDS:
+        if (
+            not force
+            and cached
+            and time.time() - cached["saved_at"] < CACHE_SECONDS
+        ):
             return cached["data"], None
 
     if not TWELVE_DATA_API_KEY:
         return None, (
             "Twelve Data API key is missing. "
-            "Set TWELVE_DATA_API_KEY in your environment."
+            "Configure TWELVE_DATA_API_KEY in Render."
         )
 
     try:
@@ -230,7 +234,7 @@ def get_stock(symbol):
         with cache_lock:
             cache[symbol] = {
                 "saved_at": time.time(),
-                "data": data
+                "data": data,
             }
 
         try:
@@ -240,29 +244,16 @@ def get_stock(symbol):
 
         return data, None
 
+    except requests.Timeout:
+        return None, "Twelve Data timed out. Please try again shortly."
+
     except requests.RequestException:
         app.logger.exception("Twelve Data connection failed")
         return None, "Could not connect to Twelve Data."
 
     except RuntimeError as error:
-        message = str(error)
+        return None, str(error)
 
-        # If the provider is temporarily unavailable, use a cached
-        # quote if one exists rather than inventing a new price.
-        with cache_lock:
-            cached = cache.get(symbol)
-
-        if cached:
-            stale = dict(cached["data"])
-            stale["stale"] = True
-            return stale, None
-
-        return None, message
-
-
-# --------------------------------------------------
-# Website and status routes
-# --------------------------------------------------
 
 @app.route("/")
 def home():
@@ -276,40 +267,38 @@ def health():
 
 @app.route("/api/config")
 def api_config():
-    """Expose configuration status only; never expose secret keys."""
     return jsonify({
         "stock_provider": "Twelve Data",
         "twelve_data_configured": bool(TWELVE_DATA_API_KEY),
+        "twelvedata_configured": bool(TWELVE_DATA_API_KEY),
         "alpha_vantage_configured": False,
-        "alpha_configured": False,
         "gemini_configured": bool(GEMINI_API_KEY),
         "ai_configured": bool(GEMINI_API_KEY),
-        "cache_seconds": CACHE_SECONDS
+        "cache_seconds": CACHE_SECONDS,
     })
 
 
 @app.route("/api/stats")
+@app.route("/api/summary")
 def api_stats():
-    records = read_history()
+    with watchlist_lock:
+        count = len(watchlist)
 
     return jsonify({
-        "watchlist_count": len(unique_symbols(watchlist)),
-        "saved_snapshots": len(records),
-        "provider": "Twelve Data"
+        "watchlist_count": count,
+        "saved_snapshots": len(read_history()),
+        "provider": "Twelve Data",
     })
 
-
-# --------------------------------------------------
-# Watchlist routes
-# --------------------------------------------------
 
 @app.route("/api/watchlist", methods=["GET", "POST"])
 def manage_watchlist():
     global watchlist
 
     if request.method == "GET":
-        watchlist = unique_symbols(watchlist)
-        return jsonify({"symbols": watchlist})
+        with watchlist_lock:
+            watchlist = unique_symbols(watchlist)
+            return jsonify({"symbols": watchlist.copy()})
 
     body = request.get_json(silent=True) or {}
     symbol = valid_symbol(body.get("symbol"))
@@ -317,15 +306,30 @@ def manage_watchlist():
     if not symbol:
         return jsonify({"error": "Enter a valid stock ticker."}), 400
 
-    if symbol not in watchlist:
+    with watchlist_lock:
+        watchlist = unique_symbols(watchlist)
+
+        if symbol in watchlist:
+            return jsonify({
+                "error": f"{symbol} is already in your watchlist.",
+                "symbols": watchlist.copy(),
+            }), 409
+
         watchlist.append(symbol)
 
-    watchlist = unique_symbols(watchlist)
+        try:
+            save_watchlist(watchlist)
+        except OSError:
+            watchlist.remove(symbol)
+            app.logger.exception("Could not save watchlist")
+            return jsonify({
+                "error": "Could not save the watchlist on this server."
+            }), 500
 
-    return jsonify({
-        "symbols": watchlist,
-        "added": symbol
-    })
+        return jsonify({
+            "symbols": watchlist.copy(),
+            "added": symbol,
+        }), 201
 
 
 @app.route("/api/watchlist/<symbol>", methods=["DELETE"])
@@ -334,29 +338,37 @@ def remove_stock(symbol):
 
     symbol = valid_symbol(symbol)
 
-    if symbol:
+    if not symbol:
+        return jsonify({"error": "Invalid stock ticker."}), 400
+
+    with watchlist_lock:
         watchlist = [
             item for item in unique_symbols(watchlist)
             if item != symbol
         ]
 
-    return jsonify({"symbols": watchlist})
+        try:
+            save_watchlist(watchlist)
+        except OSError:
+            app.logger.exception("Could not save watchlist")
+            return jsonify({
+                "error": "Could not save the updated watchlist."
+            }), 500
 
+        return jsonify({"symbols": watchlist.copy()})
 
-# --------------------------------------------------
-# Quote and history routes
-# --------------------------------------------------
 
 @app.route("/api/stock/<symbol>")
 def stock_quote(symbol):
-    data, error = get_stock(symbol)
+    force = request.args.get("refresh", "").lower() in ("1", "true", "yes")
+    data, error = get_stock(symbol, force=force)
 
     if error:
         status = 429 if "rate limit" in error.lower() else 400
         return jsonify({
             "error": error,
             "symbol": str(symbol).upper(),
-            "source": "Twelve Data"
+            "source": "Twelve Data",
         }), status
 
     return jsonify(data)
@@ -376,10 +388,6 @@ def stock_history(symbol):
         for item in records
     ])
 
-
-# --------------------------------------------------
-# Gemini AI insights route
-# --------------------------------------------------
 
 @app.route("/api/ai-insights", methods=["POST"])
 def ai_insights():
@@ -409,71 +417,59 @@ def ai_insights():
         }), 404
 
     prompt = f"""
-You are the educational AI assistant inside StockWatch,
-a student stock-market monitoring project.
+You are the educational AI assistant inside StockWatch.
 
 Analyze only the supplied information for ticker {symbol}.
 
-Saved price snapshots, oldest to newest:
+Saved price snapshots:
 {records}
 
 Latest cached quote, if available:
 {latest_quote}
 
-Write a clear report with these sections:
+Write a beginner-friendly report covering:
 1. Summary of the supplied data.
-2. Whether the recorded prices rise, fall, or look mixed.
+2. Whether recorded prices rise, fall, or look mixed.
 3. Important limitations and missing information.
 4. Two questions a learner could investigate next.
 
-Rules:
-- Do not invent prices, financial facts, or company news.
-- Explain if the dataset is too small to identify a trend.
-- Snapshots are not necessarily continuous historical data.
-- Do not claim to have fetched live data during this AI request.
-- Do not provide personalized investment advice or promise returns.
-- State that the report is educational, not financial advice.
+Do not invent prices, company news, or financial facts.
+Explain when the data is too small to identify a trend.
+Snapshots may be sparse and are not continuous historical data.
+Do not claim to have fetched live data during this AI request.
+Do not give personalized investment advice or promise returns.
+State that the report is educational, not financial advice.
 """
 
     try:
         response = gemini_client.models.generate_content(
             model=GEMINI_MODEL,
-            contents=prompt
+            contents=prompt,
         )
 
         insight_text = response.text
 
         if not insight_text:
             return jsonify({
-                "error": "Gemini returned an empty response. Try again."
+                "error": "Gemini returned an empty response. Please try again."
             }), 502
 
         return jsonify({
             "symbol": symbol,
             "insights": insight_text,
             "data_points": len(records),
-            "source": "StockWatch saved snapshots and cached quote"
+            "source": "StockWatch saved snapshots and cached quote",
         })
 
     except Exception as error:
-        app.logger.error(
-            "Gemini request failed: %s: %s",
-            type(error).__name__,
-            str(error)
-        )
-
+        app.logger.error("Gemini request failed: %s", type(error).__name__)
         return jsonify({
             "error": (
-                "Gemini could not generate insights. Check the Gemini "
-                "key, model access, internet connection, and API quota."
+                "Gemini could not generate insights. Check the configured "
+                "model, API access, connection, and quota."
             )
         }), 502
 
 
-# --------------------------------------------------
-# Run locally or on Render
-# --------------------------------------------------
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(debug=False)
