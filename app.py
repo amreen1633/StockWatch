@@ -491,13 +491,13 @@ State that the report is educational, not financial advice.
         })
 
     except Exception as error:
-        app.logger.error("Gemini request failed: %s", type(error).__name__)
-        return jsonify({
-            "error": (
-                "Gemini could not generate insights. Check the configured "
-                "model, API access, connection, and quota."
-            )
-        }), 502
+    app.logger.exception("Gemini request failed")
+    return jsonify({
+        "error": (
+            "Gemini request failed. Check the Render logs "
+            "for the detailed error."
+        )
+    }), 502
 
 
 def monitor_forever():
