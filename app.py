@@ -616,16 +616,15 @@ State that the report is educational, not financial advice.
         })
 
     except Exception as error:
-        app.logger.error(
-            "Gemini request failed: %s",
-            type(error).__name__,
-        )
+        app.logger.exception("Gemini API request failed")
 
         return jsonify({
             "error": (
-                "Gemini could not generate insights. Check the "
-                "configured model, API access, connection, and quota."
-            )
+                "Gemini API request failed. Check the Render logs "
+                "for the detailed error message."
+            ),
+            "details": str(error)[:1000],
+            "model": GEMINI_MODEL
         }), 502
 
 
