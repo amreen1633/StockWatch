@@ -1,8 +1,8 @@
-
 import os
 import csv
 import json
 import time
+import sys
 from datetime import datetime
 from threading import Lock
 
@@ -19,10 +19,19 @@ TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
-DATA_FILE = os.path.join(app.root_path, "stock_history.csv")
-WATCHLIST_FILE = os.path.join(app.root_path, "watchlist.json")
+# Configure DATA_DIR=/var/data in Render when a persistent disk
+# is mounted at /var/data. Locally, data stays beside app.py.
+DATA_DIR = os.getenv("DATA_DIR", app.root_path)
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DATA_FILE = os.path.join(DATA_DIR, "stock_history.csv")
+WATCHLIST_FILE = os.path.join(DATA_DIR, "watchlist.json")
 
 CACHE_SECONDS = 300
+MONITOR_INTERVAL_SECONDS = max(
+    60, int(os.getenv("MONITOR_INTERVAL_SECONDS", "300"))
+)
+
 cache = {}
 cache_lock = Lock()
 file_lock = Lock()
@@ -148,6 +157,12 @@ def read_history(symbol=None, limit=None):
 
 
 def fetch_twelve_data(symbol):
+    if not TWELVE_DATA_API_KEY:
+        raise RuntimeError(
+            "Twelve Data API key is missing. Configure "
+            "TWELVE_DATA_API_KEY in Render."
+        )
+
     response = session.get(
         "https://api.twelvedata.com/quote",
         params={
@@ -222,12 +237,6 @@ def get_stock(symbol, force=False):
         ):
             return cached["data"], None
 
-    if not TWELVE_DATA_API_KEY:
-        return None, (
-            "Twelve Data API key is missing. "
-            "Configure TWELVE_DATA_API_KEY in Render."
-        )
-
     try:
         data = fetch_twelve_data(symbol)
 
@@ -275,6 +284,8 @@ def api_config():
         "gemini_configured": bool(GEMINI_API_KEY),
         "ai_configured": bool(GEMINI_API_KEY),
         "cache_seconds": CACHE_SECONDS,
+        "persistent_data_dir_configured": bool(os.getenv("DATA_DIR")),
+        "monitor_interval_seconds": MONITOR_INTERVAL_SECONDS,
     })
 
 
@@ -284,9 +295,13 @@ def api_stats():
     with watchlist_lock:
         count = len(watchlist)
 
+    snapshots = read_history()
+
     return jsonify({
         "watchlist_count": count,
-        "saved_snapshots": len(read_history()),
+        "saved_snapshots": len(snapshots),
+        "snapshot_count": len(snapshots),
+        "snapshots": len(snapshots),
         "provider": "Twelve Data",
     })
 
@@ -297,7 +312,14 @@ def manage_watchlist():
 
     if request.method == "GET":
         with watchlist_lock:
+            # Normalize and persist the server's authoritative list.
             watchlist = unique_symbols(watchlist)
+
+            try:
+                save_watchlist(watchlist)
+            except OSError:
+                app.logger.exception("Could not normalize watchlist")
+
             return jsonify({"symbols": watchlist.copy()})
 
     body = request.get_json(silent=True) or {}
@@ -315,16 +337,17 @@ def manage_watchlist():
                 "symbols": watchlist.copy(),
             }), 409
 
-        watchlist.append(symbol)
+        updated = watchlist + [symbol]
 
         try:
-            save_watchlist(watchlist)
+            save_watchlist(updated)
         except OSError:
-            watchlist.remove(symbol)
             app.logger.exception("Could not save watchlist")
             return jsonify({
                 "error": "Could not save the watchlist on this server."
             }), 500
+
+        watchlist = updated
 
         return jsonify({
             "symbols": watchlist.copy(),
@@ -342,20 +365,25 @@ def remove_stock(symbol):
         return jsonify({"error": "Invalid stock ticker."}), 400
 
     with watchlist_lock:
-        watchlist = [
+        updated = [
             item for item in unique_symbols(watchlist)
             if item != symbol
         ]
 
         try:
-            save_watchlist(watchlist)
+            save_watchlist(updated)
         except OSError:
-            app.logger.exception("Could not save watchlist")
+            app.logger.exception("Could not save updated watchlist")
             return jsonify({
                 "error": "Could not save the updated watchlist."
             }), 500
 
-        return jsonify({"symbols": watchlist.copy()})
+        watchlist = updated
+
+    with cache_lock:
+        cache.pop(symbol, None)
+
+    return jsonify({"symbols": updated.copy()})
 
 
 @app.route("/api/stock/<symbol>")
@@ -418,7 +446,6 @@ def ai_insights():
 
     prompt = f"""
 You are the educational AI assistant inside StockWatch.
-
 Analyze only the supplied information for ticker {symbol}.
 
 Saved price snapshots:
@@ -433,6 +460,7 @@ Write a beginner-friendly report covering:
 3. Important limitations and missing information.
 4. Two questions a learner could investigate next.
 
+Use clear Markdown headings and bullet points.
 Do not invent prices, company news, or financial facts.
 Explain when the data is too small to identify a trend.
 Snapshots may be sparse and are not continuous historical data.
@@ -471,5 +499,36 @@ State that the report is educational, not financial advice.
         }), 502
 
 
+def monitor_forever():
+    """Server-side monitoring loop. Run as a separate Render worker."""
+    app.logger.info(
+        "StockWatch monitor started; interval=%s seconds",
+        MONITOR_INTERVAL_SECONDS,
+    )
+
+    while True:
+        with watchlist_lock:
+            current_symbols = unique_symbols(watchlist)
+
+        for symbol in current_symbols:
+            try:
+                data, error = get_stock(symbol, force=True)
+                if error:
+                    app.logger.warning("Monitor %s: %s", symbol, error)
+                else:
+                    app.logger.info(
+                        "Monitor saved %s at %s",
+                        symbol,
+                        data["price"],
+                    )
+            except Exception:
+                app.logger.exception("Monitor failed for %s", symbol)
+
+        time.sleep(MONITOR_INTERVAL_SECONDS)
+
+
 if __name__ == "__main__":
-    app.run(debug=False)
+    if "--monitor" in sys.argv:
+        monitor_forever()
+    else:
+        app.run(debug=False)
