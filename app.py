@@ -490,14 +490,14 @@ State that the report is educational, not financial advice.
             "source": "StockWatch saved snapshots and cached quote",
         })
 
-    except Exception as error:
-    app.logger.exception("Gemini request failed")
-    return jsonify({
-        "error": (
-            "Gemini request failed. Check the Render logs "
-            "for the detailed error."
-        )
-    }), 502
+    except Exception:
+        app.logger.exception("Gemini request failed")
+        return jsonify({
+            "error": (
+                "Gemini could not generate insights. "
+                "Check Render logs for the detailed error."
+            )
+        }), 502
 
 
 def monitor_forever():
